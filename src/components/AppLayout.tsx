@@ -3,7 +3,7 @@ import { Shield, LayoutDashboard, Search, FileText, Settings, LogOut, Menu, X } 
 import { useState } from "react";
 
 const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/scan", icon: Search, label: "New Scan" },
   { to: "/results", icon: FileText, label: "Results" },
   { to: "/settings", icon: Settings, label: "Settings" },
