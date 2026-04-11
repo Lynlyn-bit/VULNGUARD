@@ -4,11 +4,14 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import AppLayout from "@/components/AppLayout";
+import Index from "@/pages/Index";
 import Dashboard from "@/pages/Dashboard";
 import ScanPage from "@/pages/ScanPage";
 import ResultsPage from "@/pages/ResultsPage";
 import ScanDetail from "@/pages/ScanDetail";
 import SettingsPage from "@/pages/SettingsPage";
+import SignupPage from "@/pages/SignupPage";
+import LoginPage from "@/pages/LoginPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,8 +23,11 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/login" element={<LoginPage />} />
           <Route element={<AppLayout />}>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/scan" element={<ScanPage />} />
             <Route path="/results" element={<ResultsPage />} />
             <Route path="/results/:id" element={<ScanDetail />} />
