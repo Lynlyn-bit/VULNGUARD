@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Shield,
@@ -16,21 +16,50 @@ import {
   Minus,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { getStoredScans } from "@/lib/scanStore";
+import { apiClient } from "@/lib/api-client";
 import { getSeverityBg } from "@/lib/scanner";
+
+interface Scan {
+  _id: string;
+  url: string;
+  createdAt: string;
+  vulnerabilities: Array<{ severity: string }>;
+  summary: {
+    total: number;
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+}
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const scans = getStoredScans();
+  const [scans, setScans] = useState<Scan[]>([]);
+  const [loading, setLoading] = useState(true);
   const recentScansRef = useRef<HTMLDivElement>(null);
 
-  const totalVulns = scans.reduce((acc, s) => acc + s.vulnerabilities.length, 0);
+  // Fetch scans from API
+  useEffect(() => {
+    const fetchScans = async () => {
+      try {
+        const response = await apiClient.getScans(1, 50);
+        setScans(response.data.scans || []);
+      } catch (error) {
+        console.error('Failed to fetch scans:', error);
+        setScans([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchScans();
+  }, []);
+
+  const totalVulns = scans.reduce((acc, s) => acc + (s.vulnerabilities?.length || 0), 0);
   const criticalVulns = scans.reduce(
     (acc, s) =>
-      acc +
-      s.vulnerabilities.filter(
-        (v) => v.severity === "critical" || v.severity === "high"
-      ).length,
+      acc + (s.summary?.critical || 0) + (s.summary?.high || 0),
     0
   );
 
@@ -267,7 +296,12 @@ const Dashboard = () => {
       {/* Recent scans */}
       <div ref={recentScansRef}>
         <h2 className="mb-3 text-lg font-semibold">Recent Scans</h2>
-        {scans.length === 0 ? (
+        {loading ? (
+          <div className="rounded-lg border border-border bg-card p-8 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto" />
+            <p className="mt-3 text-sm text-muted-foreground">Loading scans...</p>
+          </div>
+        ) : scans.length === 0 ? (
           <div className="rounded-lg border border-border bg-card p-8 text-center">
             <Shield className="mx-auto h-10 w-10 text-muted-foreground/50" strokeWidth={2} />
             <p className="mt-3 text-sm text-muted-foreground">
@@ -285,24 +319,27 @@ const Dashboard = () => {
           <div className="space-y-2">
             {scans.slice(0, 5).map((scan) => (
               <motion.div
-                key={scan.id}
+                key={scan._id}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="flex items-center justify-between rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/20 hover:bg-secondary/50 cursor-pointer"
-                onClick={() => navigate(`/results/${scan.id}`)}
+                onClick={() => navigate(`/results/${scan._id}`)}
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-mono text-sm">{scan.url}</p>
                   <p className="text-xs text-muted-foreground">
-                    {new Date(scan.date).toLocaleDateString()} ·{" "}
-                    {scan.vulnerabilities.length} vulnerabilities
+                    {new Date(scan.createdAt).toLocaleDateString()} ·{" "}
+                    {scan.summary?.total || 0} vulnerabilities
                   </p>
                 </div>
                 <div className="ml-4 flex gap-1.5">
                   {["critical", "high", "medium", "low"].map((sev) => {
-                    const count = scan.vulnerabilities.filter(
-                      (v) => v.severity === sev
-                    ).length;
+                    let count = 0;
+                    if (sev === "critical") count = scan.summary?.critical || 0;
+                    else if (sev === "high") count = scan.summary?.high || 0;
+                    else if (sev === "medium") count = scan.summary?.medium || 0;
+                    else if (sev === "low") count = scan.summary?.low || 0;
+                    
                     if (count === 0) return null;
                     return (
                       <span
