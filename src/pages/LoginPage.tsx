@@ -6,19 +6,29 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 const LoginPage = () => {
   const navigate = useNavigate();
+  const { signIn } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    const { error } = await signIn(email, password);
+    setLoading(false);
+
+    if (error) {
+      toast.error(error.message);
+    } else {
       toast.success("Welcome back!");
       navigate("/dashboard");
-    }, 1000);
+    }
   };
 
   return (
@@ -43,14 +53,14 @@ const LoginPage = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="john@example.com" required />
+                <Input id="email" name="email" type="email" placeholder="john@example.com" required />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
                   <a href="#" className="text-xs text-primary hover:underline">Forgot password?</a>
                 </div>
-                <Input id="password" type="password" placeholder="••••••••" required />
+                <Input id="password" name="password" type="password" placeholder="••••••••" required />
               </div>
               <Button type="submit" className="w-full glow-primary h-11" disabled={loading}>
                 {loading ? "Signing in..." : "Sign In"}
