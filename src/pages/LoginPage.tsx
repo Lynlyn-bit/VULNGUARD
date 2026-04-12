@@ -20,14 +20,14 @@ const LoginPage = () => {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
-    const { error } = await signIn(email, password);
-    setLoading(false);
-
-    if (error) {
-      toast.error(error.message);
-    } else {
+    try {
+      await signIn(email, password);
       toast.success("Welcome back!");
       navigate("/dashboard");
+    } catch (error: any) {
+      toast.error(error || "Login failed");
+    } finally {
+      setLoading(false);
     }
   };
 

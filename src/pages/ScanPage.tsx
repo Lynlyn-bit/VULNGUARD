@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Search, Shield, Loader2, CheckCircle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { simulateScan } from "@/lib/scanner";
-import { storeScan } from "@/lib/scanStore";
+import { apiClient } from "@/lib/api-client";
 import {
   Dialog,
   DialogContent,
@@ -66,9 +66,22 @@ const ScanPage = () => {
     try {
       const result = await simulateScan(normalizedUrl);
       clearInterval(stageInterval);
-      storeScan(result);
-      setShowModal(false);
-      navigate(`/results/${result.id}`);
+      
+      // Save scan to API instead of localStorage
+      try {
+        const response = await apiClient.createScan(
+          normalizedUrl,
+          result.vulnerabilities,
+          result.duration
+        );
+        setShowModal(false);
+        navigate(`/results/${response.data.scan._id}`);
+      } catch (apiError) {
+        console.error('Failed to save scan:', apiError);
+        setScanning(false);
+        setShowModal(false);
+        setError("Scan completed but failed to save. Please try again.");
+      }
     } catch {
       clearInterval(stageInterval);
       setScanning(false);

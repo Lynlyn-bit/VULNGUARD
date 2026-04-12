@@ -1,15 +1,64 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Shield, Clock, Globe, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { motion } from "framer-motion";
-import { getScanById } from "@/lib/scanStore";
+import { useEffect, useState } from "react";
+import { apiClient } from "@/lib/api-client";
 import { getSeverityBg, getSeverityColor, type Severity } from "@/lib/scanner";
-import { useState } from "react";
+
+interface Vulnerability {
+  id: string;
+  type: string;
+  severity: Severity;
+  description: string;
+  recommendation: string;
+  location: string;
+}
+
+interface Scan {
+  _id: string;
+  url: string;
+  createdAt: string;
+  duration: number;
+  vulnerabilities: Vulnerability[];
+  summary: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+}
 
 const ScanDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const scan = getScanById(id || "");
+  const [scan, setScan] = useState<Scan | null>(null);
+  const [loading, setLoading] = useState(true);
   const [expandedVuln, setExpandedVuln] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchScan = async () => {
+      try {
+        const response = await apiClient.getScanById(id || "");
+        setScan(response.data);
+      } catch (error) {
+        console.error('Failed to fetch scan:', error);
+        setScan(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchScan();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <p className="mt-3 text-sm text-muted-foreground">Loading scan...</p>
+      </div>
+    );
+  }
 
   if (!scan) {
     return (
@@ -23,8 +72,12 @@ const ScanDetail = () => {
     );
   }
 
-  const severityCounts: Record<Severity, number> = { critical: 0, high: 0, medium: 0, low: 0 };
-  scan.vulnerabilities.forEach((v) => severityCounts[v.severity]++);
+  const severityCounts: Record<Severity, number> = {
+    critical: scan.summary?.critical || 0,
+    high: scan.summary?.high || 0,
+    medium: scan.summary?.medium || 0,
+    low: scan.summary?.low || 0,
+  };
 
   return (
     <div className="space-y-6">
@@ -37,7 +90,7 @@ const ScanDetail = () => {
         <h1 className="text-2xl font-semibold tracking-tight">Scan Report</h1>
         <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
           <span className="inline-flex items-center gap-1.5"><Globe className="h-3.5 w-3.5" /> {scan.url}</span>
-          <span className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> {new Date(scan.date).toLocaleString()}</span>
+          <span className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> {new Date(scan.createdAt).toLocaleString()}</span>
           <span className="inline-flex items-center gap-1.5"><Shield className="h-3.5 w-3.5" /> {scan.duration}s scan time</span>
         </div>
       </div>

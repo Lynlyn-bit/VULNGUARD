@@ -20,14 +20,14 @@ const SignupPage = () => {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
-    const { error } = await signUp(email, password);
-    setLoading(false);
-
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Account created! Check your email to confirm, or log in now.");
-      navigate("/login");
+    try {
+      await signUp(email, password);
+      toast.success("Account created successfully! Redirecting to dashboard...");
+      navigate("/dashboard");
+    } catch (error: any) {
+      toast.error(error || "Signup failed");
+    } finally {
+      setLoading(false);
     }
   };
 
