@@ -6,24 +6,33 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 const SignupPage = () => {
   const navigate = useNavigate();
+  const { signUp } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      toast.success("Account created successfully!");
-      navigate("/");
-    }, 1500);
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email") as string;
+    const password = formData.get("password") as string;
+
+    const { error } = await signUp(email, password);
+    setLoading(false);
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Account created! Check your email to confirm, or log in now.");
+      navigate("/login");
+    }
   };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 relative overflow-hidden">
-      {/* Background orbs */}
       <div className="absolute w-[400px] h-[400px] rounded-full bg-primary/10 blur-3xl top-[-10%] left-[-5%]" />
       <div className="absolute w-[300px] h-[300px] rounded-full bg-accent/10 blur-3xl bottom-[-10%] right-[-5%]" />
 
@@ -42,27 +51,13 @@ const SignupPage = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First name</Label>
-                  <Input id="firstName" placeholder="John" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last name</Label>
-                  <Input id="lastName" placeholder="Doe" required />
-                </div>
-              </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="john@example.com" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="company">Company name</Label>
-                <Input id="company" placeholder="Acme Store" />
+                <Input id="email" name="email" type="email" placeholder="john@example.com" required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" placeholder="••••••••" required minLength={8} />
+                <Input id="password" name="password" type="password" placeholder="••••••••" required minLength={8} />
               </div>
               <Button type="submit" className="w-full glow-primary h-11" disabled={loading}>
                 {loading ? "Creating account..." : "Create Account"}
