@@ -53,7 +53,7 @@ const AppLayout = () => {
                 }`
               }
             >
-              <item.icon className="h-4 w-4" />
+              <item.icon className="h-4 w-4" strokeWidth={2} />
               {item.label}
             </NavLink>
           ))}
