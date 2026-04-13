@@ -72,16 +72,6 @@ const ScanDetail = () => {
     .filter(v => !v.falsePositive)
     .reduce((acc, v) => acc + (v.estimatedFixMinutes || 0), 0);
 
-  const filteredVulns = useMemo(() => {
-    return scan.vulnerabilities
-      .filter(v => {
-        if (!showFalsePositives && v.falsePositive) return false;
-        if (filterSeverity !== "all" && v.severity !== filterSeverity) return false;
-        if (searchTerm && !v.type.toLowerCase().includes(searchTerm.toLowerCase()) && !v.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-        return true;
-      })
-      .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
-  }, [scan.vulnerabilities, filterSeverity, searchTerm, showFalsePositives]);
 
   const toggleFalsePositive = (vulnId: string) => {
     updateScan(scan.id, (s) => ({
