@@ -37,6 +37,18 @@ const ScanDetail = () => {
   const [aiGenerating, setAiGenerating] = useState<string | null>(null);
   const [aiFixResults, setAiFixResults] = useState<Record<string, string>>({});
 
+  const filteredVulns = useMemo(() => {
+    if (!scan) return [];
+    return scan.vulnerabilities
+      .filter(v => {
+        if (!showFalsePositives && v.falsePositive) return false;
+        if (filterSeverity !== "all" && v.severity !== filterSeverity) return false;
+        if (searchTerm && !v.type.toLowerCase().includes(searchTerm.toLowerCase()) && !v.description.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+        return true;
+      })
+      .sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+  }, [scan, filterSeverity, searchTerm, showFalsePositives]);
+
   if (!scan) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
