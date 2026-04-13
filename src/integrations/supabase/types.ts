@@ -14,7 +14,140 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      scan_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          progress: number
+          started_at: string | null
+          status: string
+          target_url: string
+          updated_at: string
+          user_id: string
+          zap_scan_id: string | null
+          zap_spider_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          progress?: number
+          started_at?: string | null
+          status?: string
+          target_url: string
+          updated_at?: string
+          user_id: string
+          zap_scan_id?: string | null
+          zap_spider_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          progress?: number
+          started_at?: string | null
+          status?: string
+          target_url?: string
+          updated_at?: string
+          user_id?: string
+          zap_scan_id?: string | null
+          zap_spider_id?: string | null
+        }
+        Relationships: []
+      }
+      scan_vulnerabilities: {
+        Row: {
+          alert_name: string
+          confidence: string
+          created_at: string
+          cwe_id: number | null
+          description: string | null
+          evidence: string | null
+          id: string
+          parameter: string | null
+          reference: string | null
+          risk_level: string
+          scan_job_id: string
+          solution: string | null
+          url: string | null
+          user_id: string
+          wasc_id: number | null
+        }
+        Insert: {
+          alert_name: string
+          confidence?: string
+          created_at?: string
+          cwe_id?: number | null
+          description?: string | null
+          evidence?: string | null
+          id?: string
+          parameter?: string | null
+          reference?: string | null
+          risk_level?: string
+          scan_job_id: string
+          solution?: string | null
+          url?: string | null
+          user_id: string
+          wasc_id?: number | null
+        }
+        Update: {
+          alert_name?: string
+          confidence?: string
+          created_at?: string
+          cwe_id?: number | null
+          description?: string | null
+          evidence?: string | null
+          id?: string
+          parameter?: string | null
+          reference?: string | null
+          risk_level?: string
+          scan_job_id?: string
+          solution?: string | null
+          url?: string | null
+          user_id?: string
+          wasc_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scan_vulnerabilities_scan_job_id_fkey"
+            columns: ["scan_job_id"]
+            isOneToOne: false
+            referencedRelation: "scan_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_scan_config: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          zap_api_key: string
+          zap_api_url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          zap_api_key?: string
+          zap_api_url?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          zap_api_key?: string
+          zap_api_url?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
