@@ -121,6 +121,42 @@ export type Database = {
           },
         ]
       }
+      scheduled_scans: {
+        Row: {
+          created_at: string
+          cron_expression: string
+          enabled: boolean
+          id: string
+          last_run_at: string | null
+          next_run_at: string | null
+          target_url: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          cron_expression?: string
+          enabled?: boolean
+          id?: string
+          last_run_at?: string | null
+          next_run_at?: string | null
+          target_url: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          cron_expression?: string
+          enabled?: boolean
+          id?: string
+          last_run_at?: string | null
+          next_run_at?: string | null
+          target_url?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_scan_config: {
         Row: {
           created_at: string
