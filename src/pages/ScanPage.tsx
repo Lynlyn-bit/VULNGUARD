@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Shield, Loader2, CheckCircle, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { simulateScan } from "@/lib/scanner";
 import { apiClient } from "@/lib/api-client";
 import {
   Dialog,
@@ -64,29 +63,61 @@ const ScanPage = () => {
     }, 600);
 
     try {
-      const result = await simulateScan(normalizedUrl);
+      // Call backend security scan endpoint
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/scan/security`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ url: normalizedUrl }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Scan failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      const { tests } = result;
+      const duration = 5000; // Placeholder
+      
       clearInterval(stageInterval);
       
-      // Save scan to API instead of localStorage
+      // Convert tests to vulnerabilities format
+      const vulnerabilities = tests.map((test: any) => ({
+        id: Math.random().toString(36).substring(7),
+        type: test.name,
+        severity: test.severity,
+        description: test.description,
+        recommendation: test.remediation,
+        location: test.location || normalizedUrl,
+        category: test.category,
+        passed: test.passed,
+        details: test.details,
+      }));
+      
+      // Save scan to API
       try {
-        const response = await apiClient.createScan(
+        const saveResponse = await apiClient.createScan(
           normalizedUrl,
-          result.vulnerabilities,
-          result.duration
+          vulnerabilities,
+          duration
         );
         setShowModal(false);
-        navigate(`/results/${response.data.scan._id}`);
+        navigate(`/results/${saveResponse.data.scan._id}`);
       } catch (apiError) {
         console.error('Failed to save scan:', apiError);
         setScanning(false);
         setShowModal(false);
         setError("Scan completed but failed to save. Please try again.");
       }
-    } catch {
+    } catch (error) {
       clearInterval(stageInterval);
+      console.error('Security scan failed:', error);
       setScanning(false);
       setShowModal(false);
-      setError("Scan failed. Please try again.");
+      setError("Scan failed. Please check the URL and try again.");
     }
   };
 
