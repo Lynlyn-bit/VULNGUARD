@@ -1,12 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Shield, Loader2, CheckCircle, AlertTriangle, Settings } from "lucide-react";
+import { Search, Shield, Loader2, CheckCircle } from "lucide-react";
 import { motion } from "framer-motion";
-import { simulateScan } from "@/lib/scanner";
-import { storeScan } from "@/lib/scanStore";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+import { apiClient } from "@/lib/api-client";
+import { getUserFriendlyError } from "@/lib/error-handler";
+import { runSecurityTests, type SecurityTest } from "@/lib/security-scanner";
 import {
   Dialog,
   DialogContent,
@@ -15,62 +13,43 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
-type ScanMode = "simulated" | "zap";
-
-const zapStages = [
-  { label: "Starting spider crawl...", detail: "Discovering all pages and endpoints" },
-  { label: "Spider crawling...", detail: "Mapping site structure" },
-  { label: "Starting active scan...", detail: "Launching vulnerability tests" },
-  { label: "Testing for SQL Injection...", detail: "Probing database inputs" },
-  { label: "Testing for XSS...", detail: "Injecting script payloads" },
-  { label: "Testing authentication...", detail: "Checking session handling" },
-  { label: "Analyzing results...", detail: "Correlating findings" },
-  { label: "Fetching vulnerability data...", detail: "Retrieving CVE details" },
-  { label: "Generating report...", detail: "Compiling final results" },
+const scanStages = [
+  { label: "Validating URL...", detail: "Confirming the target format and hostname" },
+  { label: "Checking HTTPS...", detail: "Verifying transport security and certificate reachability" },
+  { label: "Testing redirect behavior...", detail: "Checking whether HTTP is redirected to HTTPS" },
+  { label: "Inspecting security headers...", detail: "Reviewing common browser-protection headers" },
+  { label: "Reviewing disclosure & CORS...", detail: "Looking for exposed server details and permissive CORS" },
+  { label: "Checking availability...", detail: "Confirming the site responds successfully" },
+  { label: "Preparing remediation...", detail: "Generating actionable recommendations for each finding" },
 ];
 
-const simStages = [
-  { label: "Validating URL...", detail: "Checking DNS resolution" },
-  { label: "Identifying tech stack...", detail: "Detecting frameworks & servers" },
-  { label: "Checking SSL/TLS...", detail: "Analyzing certificate chain" },
-  { label: "Analyzing HTTP headers...", detail: "Inspecting security headers" },
-  { label: "Mapping attack surface...", detail: "Discovering endpoints & forms" },
-  { label: "Testing SQL Injection...", detail: "Probing input fields" },
-  { label: "Testing XSS vectors...", detail: "Injecting script payloads" },
-  { label: "Checking CSRF protections...", detail: "Verifying token presence" },
-  { label: "Scanning for open redirects...", detail: "Testing redirect parameters" },
-  { label: "Generating report...", detail: "Compiling findings" },
-];
+const fetchBackendSecurityTests = async (url: string): Promise<SecurityTest[]> => {
+  const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  const token = apiClient.getAccessToken();
+  const response = await fetch(`${apiBase}/scan/security`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ url }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Backend scan failed with status ${response.status}`);
+  }
+
+  const result = (await response.json()) as { tests?: SecurityTest[] };
+  return result.tests ?? [];
+};
 
 const ScanPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [url, setUrl] = useState("");
   const [scanning, setScanning] = useState(false);
   const [currentStage, setCurrentStage] = useState(0);
   const [error, setError] = useState("");
   const [showModal, setShowModal] = useState(false);
-  const [scanMode, setScanMode] = useState<ScanMode>("simulated");
-  const [hasZapConfig, setHasZapConfig] = useState(false);
-  const [loadingConfig, setLoadingConfig] = useState(true);
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Check if user has ZAP config
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data } = await supabase
-        .from("user_scan_config")
-        .select("zap_api_url, zap_api_key")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (data?.zap_api_url && data?.zap_api_key) {
-        setHasZapConfig(true);
-        setScanMode("zap");
-      }
-      setLoadingConfig(false);
-    })();
-  }, [user]);
 
   const isValidUrl = (input: string) => {
     try {
@@ -79,106 +58,6 @@ const ScanPage = () => {
     } catch {
       return false;
     }
-  };
-
-  const stopPolling = useCallback(() => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
-    }
-  }, []);
-
-  const callZap = async (body: Record<string, unknown>) => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData?.session?.access_token;
-    const res = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/zap-scan`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      }
-    );
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "ZAP API error");
-    return data;
-  };
-
-  const handleZapScan = async (normalizedUrl: string) => {
-    setCurrentStage(0);
-
-    // Step 1: Start spider
-    const { scan_job_id } = await callZap({
-      action: "start_spider",
-      target_url: normalizedUrl,
-    });
-
-    // Step 2: Poll spider progress
-    setCurrentStage(1);
-    await new Promise<void>((resolve, reject) => {
-      pollingRef.current = setInterval(async () => {
-        try {
-          const result = await callZap({
-            action: "check_spider",
-            scan_job_id,
-          });
-          if (result.complete) {
-            stopPolling();
-            resolve();
-          }
-        } catch (err) {
-          stopPolling();
-          reject(err);
-        }
-      }, 3000);
-    });
-
-    // Step 3: Start active scan
-    setCurrentStage(2);
-    await callZap({ action: "start_active_scan", scan_job_id });
-
-    // Step 4: Poll active scan
-    setCurrentStage(3);
-    await new Promise<void>((resolve, reject) => {
-      let stageCounter = 3;
-      pollingRef.current = setInterval(async () => {
-        try {
-          const result = await callZap({
-            action: "check_scan",
-            scan_job_id,
-          });
-          // Advance stages based on progress
-          const newStage = Math.min(
-            3 + Math.floor((result.progress / 100) * 4),
-            6
-          );
-          if (newStage > stageCounter) {
-            stageCounter = newStage;
-            setCurrentStage(stageCounter);
-          }
-          if (result.complete) {
-            stopPolling();
-            resolve();
-          }
-        } catch (err) {
-          stopPolling();
-          reject(err);
-        }
-      }, 5000);
-    });
-
-    // Step 5: Fetch results
-    setCurrentStage(7);
-    const results = await callZap({
-      action: "fetch_results",
-      scan_job_id,
-    });
-
-    setCurrentStage(8);
-    return { scan_job_id, total_alerts: results.total_alerts };
   };
 
   const handleScan = async () => {
@@ -192,111 +71,76 @@ const ScanPage = () => {
     setCurrentStage(0);
     setShowModal(true);
 
-    if (scanMode === "zap") {
-      try {
-        const { scan_job_id, total_alerts } = await handleZapScan(normalizedUrl);
-        setShowModal(false);
-        toast.success(`Scan complete — ${total_alerts} vulnerabilities found`);
-        navigate(`/results`);
-      } catch (e: any) {
-        stopPolling();
-        setScanning(false);
-        setShowModal(false);
-        setError(e.message || "ZAP scan failed");
-        toast.error("Scan failed", { description: e.message });
-      }
-    } else {
-      // Simulated scan
-      const stageInterval = setInterval(() => {
-        setCurrentStage((prev) => {
-          if (prev >= simStages.length - 1) {
-            clearInterval(stageInterval);
-            return prev;
-          }
-          return prev + 1;
-        });
-      }, 600);
+    const stageInterval = setInterval(() => {
+      setCurrentStage((prev) => {
+        if (prev >= scanStages.length - 1) {
+          clearInterval(stageInterval);
+          return prev;
+        }
+        return prev + 1;
+      });
+    }, 600);
+
+    try {
+      const startedAt = performance.now();
+      let tests: SecurityTest[] = [];
 
       try {
-        const result = await simulateScan(normalizedUrl);
-        clearInterval(stageInterval);
-        storeScan(result);
-        setShowModal(false);
-        navigate(`/results/${result.id}`);
-      } catch {
-        clearInterval(stageInterval);
+        tests = await fetchBackendSecurityTests(normalizedUrl);
+      } catch (backendError) {
+        console.warn("Backend scanner unavailable, falling back to browser scanner.", backendError);
+        tests = await runSecurityTests(normalizedUrl);
+      }
+      const duration = Math.max(1, Math.round((performance.now() - startedAt) / 1000));
+
+      clearInterval(stageInterval);
+
+      const vulnerabilities = tests
+        .filter((test: SecurityTest) => !test.passed)
+        .map((test: SecurityTest) => ({
+          id: Math.random().toString(36).substring(7),
+          type: test.name,
+          severity: test.severity,
+          description: test.description,
+          recommendation: test.remediation,
+          codeFix: test.codeFix,
+          location: test.location || normalizedUrl,
+          category: test.category,
+          passed: test.passed,
+          details: test.details,
+        }));
+
+      try {
+        const saveResponse = await apiClient.createScan(normalizedUrl, vulnerabilities, duration);
         setScanning(false);
         setShowModal(false);
-        setError("Scan failed. Please try again.");
+        navigate(`/results/${saveResponse.data.scan._id}`);
+      } catch (apiError) {
+        console.error("Failed to save scan:", apiError);
+        setScanning(false);
+        setShowModal(false);
+        setError(getUserFriendlyError(apiError));
       }
+    } catch (scanError) {
+      clearInterval(stageInterval);
+      console.error("Security scan failed:", scanError);
+      setScanning(false);
+      setShowModal(false);
+      setError(getUserFriendlyError(scanError));
     }
   };
 
-  const stages = scanMode === "zap" ? zapStages : simStages;
-  const progressPercent = ((currentStage + 1) / stages.length) * 100;
+  const progressPercent = ((currentStage + 1) / scanStages.length) * 100;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">New Scan</h1>
         <p className="text-sm text-muted-foreground">
-          Enter a website URL to scan for vulnerabilities
+          Enter a website URL to run lightweight, non-destructive security checks
         </p>
       </div>
 
-      {/* Scan mode toggle */}
-      {!loadingConfig && (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setScanMode("simulated")}
-            className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
-              scanMode === "simulated"
-                ? "border-primary/40 bg-primary/10 text-primary"
-                : "border-border bg-card text-muted-foreground hover:bg-secondary"
-            }`}
-          >
-            Simulated Scan
-          </button>
-          <button
-            onClick={() => {
-              if (!hasZapConfig) {
-                toast.error("ZAP not configured", {
-                  description: "Go to Settings to add your ZAP API URL and key",
-                  action: {
-                    label: "Settings",
-                    onClick: () => navigate("/settings"),
-                  },
-                });
-                return;
-              }
-              setScanMode("zap");
-            }}
-            className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
-              scanMode === "zap"
-                ? "border-primary/40 bg-primary/10 text-primary"
-                : "border-border bg-card text-muted-foreground hover:bg-secondary"
-            }`}
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <Shield className="h-3 w-3" /> OWASP ZAP (Real DAST)
-            </span>
-          </button>
-        </div>
-      )}
-
-      {/* ZAP mode notice */}
-      {scanMode === "zap" && (
-        <div className="rounded-md border border-accent/20 bg-accent/5 px-4 py-3 text-xs text-muted-foreground">
-          <p className="flex items-center gap-1.5 font-medium text-accent">
-            <Shield className="h-3.5 w-3.5" /> Real DAST scan via OWASP ZAP
-          </p>
-          <p className="mt-1">
-            This will perform a full spider crawl and active vulnerability scan against the target. Scans may take several minutes depending on site size.
-          </p>
-        </div>
-      )}
-
-      {/* URL input */}
       <div className="rounded-lg border border-border bg-card p-6">
         <div className="space-y-4">
           <div>
@@ -307,7 +151,10 @@ const ScanPage = () => {
                 <input
                   type="text"
                   value={url}
-                  onChange={(e) => { setUrl(e.target.value); setError(""); }}
+                  onChange={(e) => {
+                    setUrl(e.target.value);
+                    setError("");
+                  }}
                   onKeyDown={(e) => e.key === "Enter" && !scanning && handleScan()}
                   placeholder="e.g., example.com"
                   disabled={scanning}
@@ -320,9 +167,13 @@ const ScanPage = () => {
                 className="glow-primary inline-flex items-center gap-2 rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 hover:shadow-[0_0_25px_-3px_hsl(var(--primary)/0.6)] disabled:opacity-50 disabled:shadow-none"
               >
                 {scanning ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Scanning</>
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Scanning
+                  </>
                 ) : (
-                  <><Shield className="h-4 w-4" strokeWidth={2} /> Scan</>
+                  <>
+                    <Shield className="h-4 w-4" strokeWidth={2} /> Scan
+                  </>
                 )}
               </button>
             </div>
@@ -331,7 +182,6 @@ const ScanPage = () => {
         </div>
       </div>
 
-      {/* Progress modal */}
       <Dialog open={showModal} onOpenChange={() => {}}>
         <DialogContent
           className="sm:max-w-md [&>button]:hidden"
@@ -341,7 +191,7 @@ const ScanPage = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Loader2 className="h-5 w-5 animate-spin text-primary" />
-              {scanMode === "zap" ? "ZAP Scan in Progress" : "Scanning in progress"}
+              Scanning in progress
             </DialogTitle>
             <DialogDescription className="font-mono text-xs truncate">
               {url.startsWith("http") ? url : `https://${url}`}
@@ -357,7 +207,7 @@ const ScanPage = () => {
           </div>
 
           <div className="max-h-[280px] space-y-1 overflow-y-auto py-1">
-            {stages.map((stage, i) => (
+            {scanStages.map((stage, i) => (
               <motion.div
                 key={stage.label}
                 initial={{ opacity: 0, x: -10 }}
@@ -387,59 +237,32 @@ const ScanPage = () => {
           </div>
 
           <p className="text-center text-xs text-muted-foreground">
-            {scanMode === "zap"
-              ? "Real-time scan — this may take several minutes"
-              : `${currentStage + 1} of ${stages.length} steps completed`}
+            {currentStage + 1} of {scanStages.length} steps completed
           </p>
         </DialogContent>
       </Dialog>
 
-      {/* What we check */}
       {!scanning && (
         <div className="rounded-lg border border-border bg-card p-6">
-          <h3 className="mb-3 text-sm font-semibold">
-            {scanMode === "zap" ? "ZAP Active Scan Checks" : "What We Check"}
-          </h3>
+          <h3 className="mb-3 text-sm font-semibold">Checks Performed</h3>
           <div className="grid gap-2 sm:grid-cols-2">
-            {(scanMode === "zap"
-              ? [
-                  "SQL Injection (Error & Blind)",
-                  "Cross-Site Scripting (Reflected & Stored)",
-                  "Path Traversal",
-                  "Remote File Inclusion",
-                  "CSRF Token Verification",
-                  "Server-Side Request Forgery",
-                  "Command Injection",
-                  "LDAP Injection",
-                  "Security Misconfigurations",
-                  "Sensitive Data Exposure",
-                ]
-              : [
-                  "SQL Injection",
-                  "Cross-Site Scripting (XSS)",
-                  "Security Headers",
-                  "Cookie Configuration",
-                  "SSL/TLS Version",
-                  "CSRF Protection",
-                  "Open Redirects",
-                  "Information Disclosure",
-                ]
-            ).map((item) => (
+            {[
+              "SSL/TLS Certificate Validation",
+              "Simulated XSS assessment",
+              "Sensitive data exposure review",
+              "HTTP to HTTPS Redirect Check",
+              "Security Headers Analysis",
+              "Server Information Disclosure",
+              "CORS Configuration Assessment",
+              "Domain Accessibility & Reachability",
+              "Actionable remediation guidance",
+            ].map((item) => (
               <div key={item} className="flex items-center gap-2 text-sm text-muted-foreground">
                 <div className="h-1.5 w-1.5 rounded-full bg-primary" />
                 {item}
               </div>
             ))}
           </div>
-
-          {!hasZapConfig && (
-            <button
-              onClick={() => navigate("/settings")}
-              className="mt-4 inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
-            >
-              <Settings className="h-3 w-3" /> Configure ZAP for real scanning
-            </button>
-          )}
         </div>
       )}
     </div>

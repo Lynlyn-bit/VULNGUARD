@@ -14,6 +14,12 @@ import ScanDetail from "@/pages/ScanDetail";
 import SettingsPage from "@/pages/SettingsPage";
 import SignupPage from "@/pages/SignupPage";
 import LoginPage from "@/pages/LoginPage";
+import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
+import ResetPasswordPage from "@/pages/ResetPasswordPage";
+import PricingPage from "@/pages/PricingPage";
+import SubscriptionPage from "@/pages/SubscriptionPage";
+import SubscriptionSuccessPage from "@/pages/SubscriptionSuccessPage";
+import SubscriptionCancelPage from "@/pages/SubscriptionCancelPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,13 +33,19 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/success" element={<SubscriptionSuccessPage />} />
+            <Route path="/cancel" element={<SubscriptionCancelPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/scan" element={<ScanPage />} />
               <Route path="/results" element={<ResultsPage />} />
               <Route path="/results/:id" element={<ScanDetail />} />
+              <Route path="/subscription" element={<SubscriptionPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />

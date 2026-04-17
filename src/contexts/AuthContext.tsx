@@ -1,61 +1,101 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { apiClient } from "@/lib/api-client";
+import { getUserFriendlyError } from "@/lib/error-handler";
+
+interface User {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+  // Subscription fields
+  stripeCustomerId?: string;
+  subscriptionStatus: 'none' | 'active' | 'canceled' | 'past_due';
+  planTier: 'free' | 'pro' | 'enterprise';
+  currentPeriodEnd?: string;
+}
 
 interface AuthContextType {
   user: User | null;
-  session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  isAuthenticated: boolean;
+  signUp: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Load user on mount if token exists
+  const refreshUser = async () => {
+    try {
+      if (!apiClient.isAuthenticated()) {
+        setUser(null);
+        setIsAuthenticated(false);
+        return;
+      }
+
+      const response = await apiClient.getCurrentUser();
+      setUser(response.data);
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error("Failed to load user:", error);
+      setUser(null);
+      setIsAuthenticated(false);
+    }
+  };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    const initAuth = async () => {
+      try {
+        await refreshUser();
+      } finally {
         setLoading(false);
       }
-    );
+    };
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    void initAuth();
   }, []);
 
-  const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: window.location.origin },
-    });
-    return { error };
+  const signUp = async (email: string, password: string, firstName?: string, lastName?: string) => {
+    try {
+      const data = await apiClient.signup(email, password, firstName, lastName);
+      setUser(data.user);
+      setIsAuthenticated(true);
+    } catch (error: unknown) {
+      console.error('Signup failed:', error);
+      throw getUserFriendlyError(error);
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error };
+    try {
+      const data = await apiClient.signin(email, password);
+      setUser(data.user);
+      setIsAuthenticated(true);
+    } catch (error: unknown) {
+      console.error('Login failed:', error);
+      throw getUserFriendlyError(error);
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await apiClient.logout();
+    } finally {
+      setUser(null);
+      setIsAuthenticated(false);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, isAuthenticated, signUp, signIn, signOut, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
