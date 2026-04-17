@@ -37,6 +37,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [scans, setScans] = useState<Scan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState<any>(null);
   const recentScansRef = useRef<HTMLDivElement>(null);
 
   // Fetch scans from API
@@ -53,7 +54,17 @@ const Dashboard = () => {
       }
     };
 
+    const fetchSettings = async () => {
+      try {
+        const response = await apiClient.getUserSettings();
+        setSettings(response.data);
+      } catch (error) {
+        console.error('Failed to fetch settings:', error);
+      }
+    };
+
     fetchScans();
+    fetchSettings();
   }, []);
 
   const totalVulns = scans.reduce((acc, s) => acc + (s.vulnerabilities?.length || 0), 0);
@@ -136,18 +147,18 @@ const Dashboard = () => {
     {
       label: "Review vulnerability results",
       done: scans.some((s) => s.vulnerabilities.length > 0),
-      action: () => scans.length > 0 ? navigate(`/results/${scans[0].id}`) : navigate("/scan"),
+      action: () => scans.length > 0 ? navigate(`/results/${scans[0]._id}`) : navigate("/scan"),
       icon: ListChecks,
     },
     {
       label: "Set up automated weekly scans",
-      done: false,
+      done: settings?.automatedScans?.enabled || false,
       action: () => navigate("/settings"),
       icon: CalendarClock,
     },
     {
       label: "Secure your site & earn a badge",
-      done: false,
+      done: settings?.badge?.enabled || false,
       action: () => navigate("/settings"),
       icon: BadgeCheck,
     },

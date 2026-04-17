@@ -64,8 +64,9 @@ const ScanPage = () => {
 
     try {
       // Call backend security scan endpoint
+      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/scan/security`,
+        `${apiBase}/scan/security`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
