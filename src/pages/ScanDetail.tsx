@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Shield, Clock, Globe, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Shield, Clock, Globe, AlertTriangle, ChevronDown, ChevronUp, Download, CheckCircle2, RotateCcw } from "lucide-react";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { apiClient } from "@/lib/api-client";
@@ -12,6 +12,8 @@ interface Vulnerability {
   description: string;
   recommendation: string;
   location: string;
+  resolved?: boolean;
+  resolvedAt?: string;
 }
 
 interface Scan {
@@ -25,6 +27,7 @@ interface Scan {
     high: number;
     medium: number;
     low: number;
+    resolved?: number;
   };
 }
 
@@ -34,6 +37,8 @@ const ScanDetail = () => {
   const [scan, setScan] = useState<Scan | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedVuln, setExpandedVuln] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [updatingVulnerability, setUpdatingVulnerability] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchScan = async () => {
@@ -79,6 +84,45 @@ const ScanDetail = () => {
     low: scan.summary?.low || 0,
   };
 
+  const handleExportReport = async () => {
+    if (!scan) return;
+
+    try {
+      setExporting(true);
+      const { blob, filename } = await apiClient.exportScanReport(scan._id);
+      const objectUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error("Failed to export report:", error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleToggleResolved = async (vulnerability: Vulnerability) => {
+    if (!scan) return;
+
+    try {
+      setUpdatingVulnerability(vulnerability.id);
+      const response = await apiClient.updateVulnerabilityStatus(
+        scan._id,
+        vulnerability.id,
+        !vulnerability.resolved,
+      );
+      setScan(response.data as Scan);
+    } catch (error) {
+      console.error("Failed to update vulnerability status:", error);
+    } finally {
+      setUpdatingVulnerability(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <button onClick={() => navigate("/results")} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
@@ -93,6 +137,14 @@ const ScanDetail = () => {
           <span className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> {new Date(scan.createdAt).toLocaleString()}</span>
           <span className="inline-flex items-center gap-1.5"><Shield className="h-3.5 w-3.5" /> {scan.duration}s scan time</span>
         </div>
+        <button
+          onClick={handleExportReport}
+          disabled={exporting}
+          className="mt-4 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+        >
+          <Download className="h-4 w-4" />
+          {exporting ? "Exporting..." : "Export Report"}
+        </button>
       </div>
 
       {/* Summary cards */}
@@ -157,6 +209,28 @@ const ScanDetail = () => {
                       <div>
                         <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Recommendation</p>
                         <p className="text-accent">{vuln.recommendation}</p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className={`text-xs font-medium ${vuln.resolved ? "text-accent" : "text-muted-foreground"}`}>
+                          {vuln.resolved ? "Resolved" : "Open finding"}
+                        </span>
+                        <button
+                          onClick={() => handleToggleResolved(vuln)}
+                          disabled={updatingVulnerability === vuln.id}
+                          className="inline-flex items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary disabled:opacity-50"
+                        >
+                          {vuln.resolved ? (
+                            <>
+                              <RotateCcw className="h-3.5 w-3.5" />
+                              Mark Open
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              Mark Resolved
+                            </>
+                          )}
+                        </button>
                       </div>
                     </div>
                   </motion.div>
