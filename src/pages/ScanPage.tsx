@@ -14,17 +14,30 @@ import {
 } from "@/components/ui/dialog";
 
 const scanStages = [
-  { label: "Validating URL...", detail: "Checking DNS resolution" },
-  { label: "Identifying tech stack...", detail: "Detecting frameworks & servers" },
-  { label: "Checking SSL/TLS...", detail: "Analyzing certificate chain" },
-  { label: "Analyzing HTTP headers...", detail: "Inspecting security headers" },
-  { label: "Mapping attack surface...", detail: "Discovering endpoints & forms" },
-  { label: "Testing SQL Injection...", detail: "Probing input fields" },
-  { label: "Testing XSS vectors...", detail: "Injecting script payloads" },
-  { label: "Checking CSRF protections...", detail: "Verifying token presence" },
-  { label: "Scanning for open redirects...", detail: "Testing redirect parameters" },
-  { label: "Generating report...", detail: "Compiling findings" },
+  { label: "Validating URL...", detail: "Confirming the target format and hostname" },
+  { label: "Checking HTTPS...", detail: "Verifying transport security and certificate reachability" },
+  { label: "Testing redirect behavior...", detail: "Checking whether HTTP is redirected to HTTPS" },
+  { label: "Inspecting security headers...", detail: "Reviewing common browser-protection headers" },
+  { label: "Reviewing disclosure & CORS...", detail: "Looking for exposed server details and permissive CORS" },
+  { label: "Checking availability...", detail: "Confirming the site responds successfully" },
+  { label: "Preparing remediation...", detail: "Generating actionable recommendations for each finding" },
 ];
+
+const fetchBackendSecurityTests = async (url: string): Promise<SecurityTest[]> => {
+  const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  const response = await fetch(`${apiBase}/scan/security`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Backend scan failed with status ${response.status}`);
+  }
+
+  const result = (await response.json()) as { tests?: SecurityTest[] };
+  return result.tests ?? [];
+};
 
 const ScanPage = () => {
   const navigate = useNavigate();
@@ -66,7 +79,14 @@ const ScanPage = () => {
 
     try {
       const startedAt = performance.now();
-      const tests = await runSecurityTests(normalizedUrl);
+      let tests: SecurityTest[] = [];
+
+      try {
+        tests = await fetchBackendSecurityTests(normalizedUrl);
+      } catch (backendError) {
+        console.warn("Backend scanner unavailable, falling back to browser scanner.", backendError);
+        tests = await runSecurityTests(normalizedUrl);
+      }
       const duration = Math.max(1, Math.round((performance.now() - startedAt) / 1000));
       
       clearInterval(stageInterval);
@@ -115,7 +135,7 @@ const ScanPage = () => {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">New Scan</h1>
         <p className="text-sm text-muted-foreground">
-          Enter a website URL to scan for vulnerabilities
+          Enter a website URL to run lightweight, non-destructive security checks
         </p>
       </div>
 
@@ -245,15 +265,16 @@ const ScanPage = () => {
       {/* Info section */}
       {!scanning && (
         <div className="rounded-lg border border-border bg-card p-6">
-          <h3 className="mb-3 text-sm font-semibold">Real Security Tests Performed</h3>
+          <h3 className="mb-3 text-sm font-semibold">Checks Performed</h3>
           <div className="grid gap-2 sm:grid-cols-2">
             {[
               "SSL/TLS Certificate Validation",
-              "Security Headers Analysis",
               "HTTP to HTTPS Redirect Check",
+              "Security Headers Analysis",
               "Server Information Disclosure",
               "CORS Configuration Assessment",
               "Domain Accessibility & Reachability",
+              "Actionable remediation guidance",
             ].map((item) => (
               <div
                 key={item}

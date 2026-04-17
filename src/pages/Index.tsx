@@ -14,18 +14,18 @@ const stats = [
 const features = [
   {
     icon: Zap,
-    title: "Real-Time Security Analysis",
-    description: "Comprehensive non-destructive scans of your website infrastructure and security configuration.",
+    title: "Fast Website Security Checks",
+    description: "Run lightweight, non-destructive checks against your public website configuration in minutes.",
   },
   {
     icon: Shield,
-    title: "Complete Security Coverage",
-    description: "SSL/TLS validation, security headers, CORS configuration, server disclosure detection, and accessibility testing.",
+    title: "Focused Coverage",
+    description: "Check HTTPS, redirect behavior, security headers, CORS exposure, server disclosure, and site availability.",
   },
   {
     icon: BarChart3,
-    title: "Detailed Security Reports",
-    description: "Get actionable remediation steps with severity levels to prioritize your security improvements.",
+    title: "Actionable Reports",
+    description: "Get practical remediation guidance tied to each real finding so you know what to fix next.",
   },
   {
     icon: Lock,
@@ -170,7 +170,7 @@ const Index = () => {
             <span className="text-primary text-glow">Before Hackers Do</span>
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto mb-10">
-            Real-time security scanning for SME websites. Identify and fix critical security issues in minutes.
+            Lightweight website security checks for SMEs. Spot common configuration issues and get practical fixes quickly.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link to="/signup">
@@ -229,10 +229,10 @@ const Index = () => {
               See It <span className="text-primary">In Action</span>
             </h2>
             <p className="text-muted-foreground mb-6 max-w-md">
-              Our real security scanner analyzes your infrastructure and delivers a comprehensive report with actionable guidance — all in real-time.
+              Our scanner performs real, non-destructive checks against your live site and returns clear remediation guidance for each finding.
             </p>
             <ul className="space-y-3 text-sm">
-              {["Real-time infrastructure analysis", "Security headers & SSL/TLS checks", "Severity-based prioritization", "One-click remediation guides"].map((item) => (
+              {["HTTPS and redirect checks", "Security headers and CORS review", "Server disclosure and availability checks", "Severity-based remediation guidance"].map((item) => (
                 <li key={item} className="flex items-center gap-2 text-foreground/80">
                   <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
                   {item}
@@ -257,7 +257,7 @@ const Index = () => {
             Everything You Need to <span className="text-primary">Stay Secure</span>
           </h2>
           <p className="text-muted-foreground max-w-lg mx-auto">
-            Built specifically for SME e-commerce platforms. No security expertise required.
+            Built for SMEs that want practical website hardening guidance without running invasive security tests.
           </p>
         </div>
         <div className="max-w-5xl mx-auto grid sm:grid-cols-2 gap-6">
@@ -292,7 +292,7 @@ const Index = () => {
             Ready to Secure Your Business?
           </h2>
           <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-            Join hundreds of SMEs who trust VulnGuard to keep their e-commerce platforms safe.
+            Run a scan, review the findings, and start fixing the issues that matter first.
           </p>
           <Link to="/signup">
             <Button size="lg" className="glow-primary text-base px-10 h-12">
