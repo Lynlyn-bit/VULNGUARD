@@ -1,4 +1,4 @@
-import { Shield, Copy, Check, Clock, Badge, Link2, Download } from "lucide-react";
+import { Shield, Copy, Check, Clock, Badge } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiClient } from "@/lib/api-client";
@@ -474,9 +474,9 @@ const SettingsPage = () => {
             </h3>
             <div className="space-y-4">
               <div>
-                <p className="text-sm text-muted-foreground font-medium mb-2">VulnGuard v1.0 — Real Web Vulnerability Scanner for SMEs</p>
+                <p className="text-sm text-muted-foreground font-medium mb-2">VulnGuard v1.0 — Lightweight Website Security Checks for SMEs</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  VulnGuard performs real, non-destructive security scans on your web applications. Our advanced security testing engine analyzes your infrastructure for critical vulnerabilities without causing any harm to your systems.
+                  VulnGuard performs real, non-destructive checks against your public website configuration. It focuses on transport security, security headers, disclosure signals, CORS behavior, and site reachability.
                 </p>
               </div>
               
@@ -502,7 +502,7 @@ const SettingsPage = () => {
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-1">Key Features:</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Automated scanning with detailed remediation guidance, real-time vulnerability alerts, customizable scan scheduling, and security badge for your website. All data is encrypted end-to-end with no sensitive information stored.
+                  Automated scanning, detailed remediation guidance, customizable schedules, and a security badge for your website. All checks are designed to stay lightweight and non-destructive.
                 </p>
               </div>
             </div>
