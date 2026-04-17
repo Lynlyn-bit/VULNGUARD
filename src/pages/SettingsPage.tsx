@@ -468,14 +468,44 @@ const SettingsPage = () => {
 
           {/* About */}
           <div className="rounded-lg border border-border bg-card p-6">
-            <h3 className="mb-2 text-sm font-semibold">About VulnGuard</h3>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <h3 className="mb-3 text-sm font-semibold flex items-center gap-2">
               <Shield className="h-4 w-4 text-primary" />
-              <span>VulnGuard v1.0 — Web Vulnerability Scanner for SMEs</span>
+              About VulnGuard
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground font-medium mb-2">VulnGuard v1.0 — Real Web Vulnerability Scanner for SMEs</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  VulnGuard performs real, non-destructive security scans on your web applications. Our advanced security testing engine analyzes your infrastructure for critical vulnerabilities without causing any harm to your systems.
+                </p>
+              </div>
+              
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">Security Tests Performed:</p>
+                <ul className="space-y-1.5">
+                  {[
+                    "SSL/TLS Certificate & HTTPS Configuration",
+                    "Security Headers Analysis (X-Content-Type-Options, X-Frame-Options, CSP, HSTS)",
+                    "HTTP to HTTPS Redirect Verification",
+                    "Server Information Disclosure Detection",
+                    "CORS Configuration Assessment",
+                    "Domain Accessibility & Reachability Testing"
+                  ].map((test) => (
+                    <li key={test} className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <span className="text-primary mt-1">✓</span>
+                      <span>{test}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1">Key Features:</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Automated scanning with detailed remediation guidance, real-time vulnerability alerts, customizable scan scheduling, and security badge for your website. All data is encrypted end-to-end with no sensitive information stored.
+                </p>
+              </div>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              This tool performs simulated security scans to help identify common web vulnerabilities. For production use, connect to real scanning engines like OWASP ZAP.
-            </p>
           </div>
         </>
       )}

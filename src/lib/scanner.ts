@@ -90,6 +90,12 @@ function generateId(): string {
   return Math.random().toString(36).substring(2, 10);
 }
 
+/**
+ * DEPRECATED: Legacy client-side simulation function
+ * VulnGuard now performs REAL security scans via backend service
+ * This function is kept for reference only and is not used
+ * @see security-scanner.ts (backend service)
+ */
 export function simulateScan(url: string): Promise<ScanResult> {
   return new Promise((resolve) => {
     const duration = 3000 + Math.random() * 5000;

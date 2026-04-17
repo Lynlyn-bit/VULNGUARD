@@ -14,32 +14,32 @@ const stats = [
 const features = [
   {
     icon: Zap,
-    title: "Lightning Fast Scans",
-    description: "Scan your entire e-commerce platform in under 2 minutes with our optimized scanning engine.",
+    title: "Real-Time Security Analysis",
+    description: "Comprehensive non-destructive scans of your website infrastructure and security configuration.",
   },
   {
     icon: Shield,
-    title: "OWASP Top 10 Coverage",
-    description: "Comprehensive checks for SQL Injection, XSS, CSRF, and all major vulnerability categories.",
+    title: "Complete Security Coverage",
+    description: "SSL/TLS validation, security headers, CORS configuration, server disclosure detection, and accessibility testing.",
   },
   {
     icon: BarChart3,
-    title: "Detailed Reports",
-    description: "Get severity-coded results with actionable remediation steps your team can follow.",
+    title: "Detailed Security Reports",
+    description: "Get actionable remediation steps with severity levels to prioritize your security improvements.",
   },
   {
     icon: Lock,
-    title: "Secure by Design",
+    title: "Enterprise-Grade Security",
     description: "Your data is encrypted end-to-end. We never store sensitive information from your scans.",
   },
 ];
 
 const vulnerabilities = [
-  { name: "SQL Injection", severity: "critical", found: true },
-  { name: "Cross-Site Scripting", severity: "high", found: true },
-  { name: "CSRF Token Missing", severity: "medium", found: true },
-  { name: "Secure Headers", severity: "low", found: false },
-  { name: "SSL/TLS Config", severity: "low", found: false },
+  { name: "SSL/TLS Certificate", severity: "critical", found: true },
+  { name: "Security Headers", severity: "high", found: true },
+  { name: "HTTPS Redirect", severity: "medium", found: true },
+  { name: "Server Disclosure", severity: "low", found: false },
+  { name: "CORS Config", severity: "low", found: false },
 ];
 
 const FloatingOrb = ({ delay, size, x, y }: { delay: number; size: number; x: string; y: string }) => (
@@ -170,7 +170,7 @@ const Index = () => {
             <span className="text-primary text-glow">Before Hackers Do</span>
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-xl mx-auto mb-10">
-            Automated vulnerability scanning built for e-commerce. Find and fix security issues in minutes, not months.
+            Real-time security scanning for SME websites. Identify and fix critical security issues in minutes.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link to="/signup">
@@ -229,10 +229,10 @@ const Index = () => {
               See It <span className="text-primary">In Action</span>
             </h2>
             <p className="text-muted-foreground mb-6 max-w-md">
-              Our scanner crawls your site, tests for vulnerabilities, and delivers a prioritized report — all in real-time.
+              Our real security scanner analyzes your infrastructure and delivers a comprehensive report with actionable guidance — all in real-time.
             </p>
             <ul className="space-y-3 text-sm">
-              {["Automated crawling & discovery", "OWASP Top 10 vulnerability checks", "Severity-based prioritization", "One-click remediation guides"].map((item) => (
+              {["Real-time infrastructure analysis", "Security headers & SSL/TLS checks", "Severity-based prioritization", "One-click remediation guides"].map((item) => (
                 <li key={item} className="flex items-center gap-2 text-foreground/80">
                   <CheckCircle2 className="h-4 w-4 text-accent flex-shrink-0" />
                   {item}

@@ -259,17 +259,15 @@ const ScanPage = () => {
       {/* Info section */}
       {!scanning && (
         <div className="rounded-lg border border-border bg-card p-6">
-          <h3 className="mb-3 text-sm font-semibold">What We Check</h3>
+          <h3 className="mb-3 text-sm font-semibold">Real Security Tests Performed</h3>
           <div className="grid gap-2 sm:grid-cols-2">
             {[
-              "SQL Injection",
-              "Cross-Site Scripting (XSS)",
-              "Security Headers",
-              "Cookie Configuration",
-              "SSL/TLS Version",
-              "CSRF Protection",
-              "Open Redirects",
-              "Information Disclosure",
+              "SSL/TLS Certificate Validation",
+              "Security Headers Analysis",
+              "HTTP to HTTPS Redirect Check",
+              "Server Information Disclosure",
+              "CORS Configuration Assessment",
+              "Domain Accessibility & Reachability",
             ].map((item) => (
               <div
                 key={item}
