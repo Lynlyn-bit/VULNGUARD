@@ -17,6 +17,7 @@ import LoginPage from "@/pages/LoginPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import PricingPage from "@/pages/PricingPage";
+import SubscriptionPage from "@/pages/SubscriptionPage";
 import SubscriptionSuccessPage from "@/pages/SubscriptionSuccessPage";
 import SubscriptionCancelPage from "@/pages/SubscriptionCancelPage";
 import NotFound from "@/pages/NotFound";
@@ -44,6 +45,7 @@ const App = () => (
               <Route path="/scan" element={<ScanPage />} />
               <Route path="/results" element={<ResultsPage />} />
               <Route path="/results/:id" element={<ScanDetail />} />
+              <Route path="/subscription" element={<SubscriptionPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />

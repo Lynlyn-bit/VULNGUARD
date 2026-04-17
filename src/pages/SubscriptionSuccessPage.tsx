@@ -85,9 +85,9 @@ const SubscriptionSuccessPage = () => {
           </Button>
           <Button
             variant="outline"
-            onClick={() => navigate("/settings")}
+            onClick={() => navigate("/subscription")}
           >
-            View Subscription Settings
+            View Subscription
           </Button>
         </div>
 
