@@ -3,7 +3,7 @@ import { FileText, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { apiClient } from "@/lib/api-client";
-import { getSeverityBg } from "@/lib/scanner";
+import { getSeverityBg, type Severity } from "@/lib/scanner";
 
 interface Scan {
   _id: string;
@@ -91,7 +91,7 @@ const ResultsPage = () => {
                   <td className="px-4 py-3 font-mono text-sm">{scan.summary?.total || 0}</td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1">
-                      {["critical", "high", "medium", "low"].map((sev) => {
+                      {(["critical", "high", "medium", "low"] as Severity[]).map((sev) => {
                         let count = 0;
                         if (sev === "critical") count = scan.summary?.critical || 0;
                         else if (sev === "high") count = scan.summary?.high || 0;
@@ -100,7 +100,7 @@ const ResultsPage = () => {
                         
                         if (count === 0) return null;
                         return (
-                          <span key={sev} className={`inline-flex rounded border px-1.5 py-0.5 text-[10px] font-mono font-medium ${getSeverityBg(sev as any)}`}>
+                          <span key={sev} className={`inline-flex rounded border px-1.5 py-0.5 text-[10px] font-mono font-medium ${getSeverityBg(sev)}`}>
                             {count}
                           </span>
                         );

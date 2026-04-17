@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Mail, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
+import { getUserFriendlyError } from '@/lib/error-handler';
 
 export default function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [resetUrl, setResetUrl] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,17 +29,19 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      await apiClient.forgotPassword(email);
+      const response = await apiClient.forgotPassword(email);
+      setResetUrl(response.data.resetUrl || '');
       setSubmitted(true);
       toast({
         title: 'Success',
         description: 'If this email exists, a reset link has been sent.',
       });
-    } catch (err: any) {
-      setError(err.message || 'Failed to send reset link');
+    } catch (err: unknown) {
+      const message = getUserFriendlyError(err);
+      setError(message);
       toast({
         title: 'Error',
-        description: err.message || 'Failed to send reset link',
+        description: message,
         variant: 'destructive',
       });
     } finally {
@@ -124,6 +128,17 @@ export default function ForgotPasswordPage() {
                   The reset link will expire in 1 hour. If you don't see the email, check your spam folder.
                 </AlertDescription>
               </Alert>
+
+              {resetUrl && (
+                <Alert>
+                  <AlertDescription className="space-y-2">
+                    <span className="block font-medium">Local demo reset link</span>
+                    <a href={resetUrl} className="break-all text-primary underline">
+                      {resetUrl}
+                    </a>
+                  </AlertDescription>
+                </Alert>
+              )}
 
               <Button
                 type="button"

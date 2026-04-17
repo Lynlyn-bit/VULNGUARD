@@ -16,8 +16,8 @@ import {
   Minus,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { apiClient } from "@/lib/api-client";
-import { getSeverityBg } from "@/lib/scanner";
+import { apiClient, type UserSettings } from "@/lib/api-client";
+import { getSeverityBg, type Severity } from "@/lib/scanner";
 
 interface Scan {
   _id: string;
@@ -37,7 +37,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [scans, setScans] = useState<Scan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [settings, setSettings] = useState<any>(null);
+  const [settings, setSettings] = useState<UserSettings | null>(null);
   const recentScansRef = useRef<HTMLDivElement>(null);
 
   // Fetch scans from API
@@ -87,16 +87,34 @@ const Dashboard = () => {
   };
   const trend = getTrend();
 
-  // Scheduled scan countdown (mock: next scan in 3 days from now)
   const getNextScanCountdown = () => {
-    if (scans.length === 0) return null;
-    const days = 3;
-    const hours = 14;
+    if (!settings?.automatedScans?.enabled) return null;
+
+    const scheduledDay = settings.automatedScans.dayOfWeek;
+    const [hourValue, minuteValue] = settings.automatedScans.timeOfDay.split(":");
+    const target = new Date();
+    const dayMap = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const targetDayIndex = dayMap.indexOf(scheduledDay);
+
+    if (targetDayIndex === -1) return null;
+
+    const daysUntil = (targetDayIndex - target.getDay() + 7) % 7;
+    target.setDate(target.getDate() + daysUntil);
+    target.setHours(Number(hourValue), Number(minuteValue), 0, 0);
+
+    if (target.getTime() <= Date.now()) {
+      target.setDate(target.getDate() + 7);
+    }
+
+    const diffMs = target.getTime() - Date.now();
+    const days = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+    const hours = Math.floor((diffMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+
     return `${days}d ${hours}h`;
   };
   const nextScan = getNextScanCountdown();
 
-  const scrollToRecent = (filterSeverity?: string) => {
+  const scrollToRecent = () => {
     recentScansRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
@@ -344,7 +362,7 @@ const Dashboard = () => {
                   </p>
                 </div>
                 <div className="ml-4 flex gap-1.5">
-                  {["critical", "high", "medium", "low"].map((sev) => {
+                  {(["critical", "high", "medium", "low"] as Severity[]).map((sev) => {
                     let count = 0;
                     if (sev === "critical") count = scan.summary?.critical || 0;
                     else if (sev === "high") count = scan.summary?.high || 0;
@@ -356,7 +374,7 @@ const Dashboard = () => {
                       <span
                         key={sev}
                         className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-mono font-medium ${getSeverityBg(
-                          sev as any
+                          sev
                         )}`}
                       >
                         {count} {sev[0].toUpperCase()}

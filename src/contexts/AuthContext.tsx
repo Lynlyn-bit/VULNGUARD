@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { apiClient } from "@/lib/api-client";
+import { getUserFriendlyError } from "@/lib/error-handler";
 
 interface User {
   id: string;
@@ -21,6 +22,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,24 +33,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Load user on mount if token exists
+  const refreshUser = async () => {
+    try {
+      if (!apiClient.isAuthenticated()) {
+        setUser(null);
+        setIsAuthenticated(false);
+        return;
+      }
+
+      const response = await apiClient.getCurrentUser();
+      setUser(response.data);
+      setIsAuthenticated(true);
+    } catch (error) {
+      console.error("Failed to load user:", error);
+      setUser(null);
+      setIsAuthenticated(false);
+    }
+  };
+
   useEffect(() => {
     const initAuth = async () => {
       try {
-        if (apiClient.isAuthenticated()) {
-          const response = await apiClient.getCurrentUser();
-          setUser(response.data);
-          setIsAuthenticated(true);
-        }
-      } catch (error) {
-        console.error('Failed to load user:', error);
-        setUser(null);
-        setIsAuthenticated(false);
+        await refreshUser();
       } finally {
         setLoading(false);
       }
     };
 
-    initAuth();
+    void initAuth();
   }, []);
 
   const signUp = async (email: string, password: string, firstName?: string, lastName?: string) => {
@@ -56,9 +68,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const data = await apiClient.signup(email, password, firstName, lastName);
       setUser(data.user);
       setIsAuthenticated(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Signup failed:', error);
-      throw error.response?.data?.error || 'Signup failed';
+      throw getUserFriendlyError(error);
     }
   };
 
@@ -67,9 +79,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const data = await apiClient.signin(email, password);
       setUser(data.user);
       setIsAuthenticated(true);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login failed:', error);
-      throw error.response?.data?.error || 'Login failed';
+      throw getUserFriendlyError(error);
     }
   };
 
@@ -83,7 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAuthenticated, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, isAuthenticated, signUp, signIn, signOut, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
