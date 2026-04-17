@@ -45,6 +45,7 @@ export interface ScanVulnerability {
   severity: VulnerabilitySeverity;
   description: string;
   recommendation: string;
+  codeFix?: string;
   location: string;
   category?: string;
   passed?: boolean;

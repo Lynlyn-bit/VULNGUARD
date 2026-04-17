@@ -10,6 +10,7 @@ export interface SecurityTest {
   description: string;
   severity: "low" | "medium" | "high" | "critical";
   remediation: string;
+  codeFix?: string;
   passed: boolean;
   details?: string;
   location?: string;

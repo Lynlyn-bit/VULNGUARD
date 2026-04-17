@@ -11,6 +11,7 @@ interface Vulnerability {
   severity: Severity;
   description: string;
   recommendation: string;
+  codeFix?: string;
   location: string;
   resolved?: boolean;
   resolvedAt?: string;
@@ -210,6 +211,14 @@ const ScanDetail = () => {
                         <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Recommendation</p>
                         <p className="text-accent">{vuln.recommendation}</p>
                       </div>
+                      {vuln.codeFix && (
+                        <div>
+                          <p className="mb-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">Code Fix</p>
+                          <pre className="overflow-x-auto rounded-md border border-border bg-muted p-3 text-xs text-foreground/90">
+                            <code>{vuln.codeFix}</code>
+                          </pre>
+                        </div>
+                      )}
                       <div className="flex flex-wrap items-center gap-3">
                         <span className={`text-xs font-medium ${vuln.resolved ? "text-accent" : "text-muted-foreground"}`}>
                           {vuln.resolved ? "Resolved" : "Open finding"}
