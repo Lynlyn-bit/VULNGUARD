@@ -33,9 +33,19 @@ interface Scan {
   };
 }
 
+interface ActivityLog {
+  _id: string;
+  action: string;
+  entityType: string;
+  targetUrl?: string;
+  createdAt: string;
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [scans, setScans] = useState<Scan[]>([]);
+  const [totalScans, setTotalScans] = useState(0);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const recentScansRef = useRef<HTMLDivElement>(null);
@@ -46,9 +56,11 @@ const Dashboard = () => {
       try {
         const response = await apiClient.getScans(1, 50);
         setScans(response.data.scans || []);
+        setTotalScans(response.data.pagination?.total || response.data.scans?.length || 0);
       } catch (error) {
         console.error('Failed to fetch scans:', error);
         setScans([]);
+        setTotalScans(0);
       } finally {
         setLoading(false);
       }
@@ -63,8 +75,18 @@ const Dashboard = () => {
       }
     };
 
+    const fetchActivity = async () => {
+      try {
+        const response = await apiClient.getActivityLogs(8);
+        setActivityLogs(response.data.logs || []);
+      } catch (error) {
+        console.error('Failed to fetch activity logs:', error);
+      }
+    };
+
     fetchScans();
     fetchSettings();
+    fetchActivity();
   }, []);
 
   const totalVulns = scans.reduce((acc, s) => acc + (s.vulnerabilities?.length || 0), 0);
@@ -121,7 +143,7 @@ const Dashboard = () => {
   const stats = [
     {
       label: "Total Scans",
-      value: scans.length,
+      value: totalScans,
       icon: Search,
       color: "text-primary",
       clickable: true,
@@ -142,7 +164,7 @@ const Dashboard = () => {
       icon: Shield,
       color: "text-severity-high",
       clickable: true,
-      onClick: () => scrollToRecent("critical"),
+      onClick: () => scrollToRecent(),
     },
     {
       label: "Sites Scanned",
@@ -386,6 +408,35 @@ const Dashboard = () => {
             ))}
           </div>
         )}
+      </div>
+
+      <div>
+        <h2 className="mb-3 text-lg font-semibold">Recent Activity</h2>
+        <div className="rounded-lg border border-border bg-card p-4">
+          {activityLogs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Activity logs will appear here after scans, report exports, and resolution updates.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {activityLogs.map((log) => (
+                <div key={log._id} className="flex items-start justify-between gap-4 border-b border-border/60 pb-3 last:border-0 last:pb-0">
+                  <div>
+                    <p className="text-sm font-medium">
+                      {log.action.replace(/_/g, " ")}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {log.targetUrl || log.entityType}
+                    </p>
+                  </div>
+                  <p className="whitespace-nowrap text-xs text-muted-foreground">
+                    {new Date(log.createdAt).toLocaleString()}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

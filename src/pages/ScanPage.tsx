@@ -25,9 +25,13 @@ const scanStages = [
 
 const fetchBackendSecurityTests = async (url: string): Promise<SecurityTest[]> => {
   const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  const token = apiClient.getAccessToken();
   const response = await fetch(`${apiBase}/scan/security`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
     body: JSON.stringify({ url }),
   });
 
@@ -92,7 +96,9 @@ const ScanPage = () => {
       clearInterval(stageInterval);
       
       // Convert local scanner results to persisted vulnerability records
-      const vulnerabilities = tests.map((test: SecurityTest) => ({
+      const vulnerabilities = tests
+        .filter((test: SecurityTest) => !test.passed)
+        .map((test: SecurityTest) => ({
         id: Math.random().toString(36).substring(7),
         type: test.name,
         severity: test.severity,
