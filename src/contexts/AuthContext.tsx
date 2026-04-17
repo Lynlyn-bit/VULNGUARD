@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { apiClient } from "@/lib/api-client";
-import { getUserFriendlyError } from "@/lib/error-handler";
 
 interface User {
   id: string;
@@ -69,8 +68,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(data.user);
       setIsAuthenticated(true);
     } catch (error: unknown) {
-      console.error('Signup failed:', error);
-      throw getUserFriendlyError(error);
+      console.error("Signup failed:", error);
+      throw error;
     }
   };
 
@@ -80,8 +79,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(data.user);
       setIsAuthenticated(true);
     } catch (error: unknown) {
-      console.error('Login failed:', error);
-      throw getUserFriendlyError(error);
+      console.error("Login failed:", error);
+      throw error;
     }
   };
 
