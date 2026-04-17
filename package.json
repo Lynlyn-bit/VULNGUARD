@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:frontend": "vite --host 127.0.0.1 --port 5173 --strictPort",
+    "dev:backend": "npm --prefix shield-sme-api run dev",
+    "dev:full": "powershell -ExecutionPolicy Bypass -File scripts/dev-full.ps1",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
