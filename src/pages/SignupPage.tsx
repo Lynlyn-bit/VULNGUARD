@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { getUserFriendlyError } from "@/lib/error-handler";
 import {
   validatePasswordStrength,
   getStrengthColor,
@@ -38,8 +39,8 @@ const SignupPage = () => {
       await signUp(email, password);
       toast.success("Account created successfully! Redirecting to dashboard...");
       navigate("/dashboard");
-    } catch (error: any) {
-      toast.error(error || "Signup failed");
+    } catch (error: unknown) {
+      toast.error(getUserFriendlyError(error));
     } finally {
       setLoading(false);
     }

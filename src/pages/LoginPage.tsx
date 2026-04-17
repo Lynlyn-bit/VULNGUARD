@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { getUserFriendlyError } from "@/lib/error-handler";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -24,8 +25,8 @@ const LoginPage = () => {
       await signIn(email, password);
       toast.success("Welcome back!");
       navigate("/dashboard");
-    } catch (error: any) {
-      toast.error(error || "Login failed");
+    } catch (error: unknown) {
+      toast.error(getUserFriendlyError(error));
     } finally {
       setLoading(false);
     }

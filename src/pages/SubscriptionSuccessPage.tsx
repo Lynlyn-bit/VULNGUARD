@@ -4,9 +4,12 @@ import { CheckCircle, ArrowRight, Loader } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { getUserFriendlyError } from "@/lib/error-handler";
 
 const SubscriptionSuccessPage = () => {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const sessionId = searchParams.get("session_id");
@@ -17,18 +20,19 @@ const SubscriptionSuccessPage = () => {
         if (sessionId) {
           // Verify the checkout session with backend
           await apiClient.verifyCheckoutSession(sessionId);
+          await refreshUser();
         }
         toast.success("Subscription activated successfully!");
         setLoading(false);
       } catch (error) {
         console.error("Failed to verify session:", error);
-        toast.error("Failed to confirm subscription. Contact support.");
+        toast.error(getUserFriendlyError(error));
         setLoading(false);
       }
     };
 
-    verifySession();
-  }, [sessionId]);
+    void verifySession();
+  }, [refreshUser, sessionId]);
 
   if (loading) {
     return (

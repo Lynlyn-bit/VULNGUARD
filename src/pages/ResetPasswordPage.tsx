@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
+import { getUserFriendlyError } from '@/lib/error-handler';
 import {
   validatePasswordStrength,
   getStrengthColor,
@@ -53,8 +54,8 @@ export default function ResetPasswordPage() {
         const response = await apiClient.verifyResetToken(token);
         setTokenValid(true);
         setEmail(response.email);
-      } catch (err: any) {
-        setError(err.message || 'Invalid or expired reset link');
+      } catch (err: unknown) {
+        setError(getUserFriendlyError(err));
         setTokenValid(false);
       } finally {
         setVerifying(false);
@@ -93,11 +94,12 @@ export default function ResetPasswordPage() {
         description: 'Your password has been reset successfully',
       });
       setTimeout(() => navigate('/login'), 2000);
-    } catch (err: any) {
-      setError(err.message || 'Failed to reset password');
+    } catch (err: unknown) {
+      const message = getUserFriendlyError(err);
+      setError(message);
       toast({
         title: 'Error',
-        description: err.message || 'Failed to reset password',
+        description: message,
         variant: 'destructive',
       });
     } finally {

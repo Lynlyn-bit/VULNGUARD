@@ -72,7 +72,7 @@ export function validatePasswordStrength(password: string): PasswordStrength {
   }
 
   // Check symbols
-  const symbolRegex = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/;
+  const symbolRegex = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/;
   if (symbolRegex.test(password)) {
     score += 20;
   } else {

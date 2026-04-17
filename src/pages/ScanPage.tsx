@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Shield, Loader2, CheckCircle, X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Search, Shield, Loader2, CheckCircle } from "lucide-react";
+import { motion } from "framer-motion";
 import { apiClient } from "@/lib/api-client";
+import { getUserFriendlyError } from "@/lib/error-handler";
+import { runSecurityTests, type SecurityTest } from "@/lib/security-scanner";
 import {
   Dialog,
   DialogContent,
@@ -63,30 +65,14 @@ const ScanPage = () => {
     }, 600);
 
     try {
-      // Call backend security scan endpoint
-      const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-      const response = await fetch(
-        `${apiBase}/scan/security`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ url: normalizedUrl }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Scan failed: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      const { tests } = result;
-      const duration = 5000; // Placeholder
+      const startedAt = performance.now();
+      const tests = await runSecurityTests(normalizedUrl);
+      const duration = Math.max(1, Math.round((performance.now() - startedAt) / 1000));
       
       clearInterval(stageInterval);
       
-      // Convert tests to vulnerabilities format
-      const vulnerabilities = tests.map((test: any) => ({
+      // Convert local scanner results to persisted vulnerability records
+      const vulnerabilities = tests.map((test: SecurityTest) => ({
         id: Math.random().toString(36).substring(7),
         type: test.name,
         severity: test.severity,
@@ -111,14 +97,14 @@ const ScanPage = () => {
         console.error('Failed to save scan:', apiError);
         setScanning(false);
         setShowModal(false);
-        setError("Scan completed but failed to save. Please try again.");
+        setError(getUserFriendlyError(apiError));
       }
     } catch (error) {
       clearInterval(stageInterval);
       console.error('Security scan failed:', error);
       setScanning(false);
       setShowModal(false);
-      setError("Scan failed. Please check the URL and try again.");
+      setError(getUserFriendlyError(error));
     }
   };
 

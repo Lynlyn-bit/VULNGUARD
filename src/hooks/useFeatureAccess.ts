@@ -1,3 +1,4 @@
+import React from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
 /**
@@ -68,18 +69,21 @@ export function FeatureGate({ feature, children, fallback }: FeatureGateProps) {
   const hasAccess = useFeatureAccess(feature);
 
   if (!hasAccess) {
-    return (
-      <>
-        {fallback || (
-          <div className="rounded-lg border border-border bg-muted/50 p-4">
-            <p className="text-sm text-muted-foreground">
-              This feature is available only on Pro and Enterprise plans.
-            </p>
-          </div>
-        )}
-      </>
+    return React.createElement(
+      React.Fragment,
+      null,
+      fallback ||
+        React.createElement(
+          "div",
+          { className: "rounded-lg border border-border bg-muted/50 p-4" },
+          React.createElement(
+            "p",
+            { className: "text-sm text-muted-foreground" },
+            "This feature is available only on Pro and Enterprise plans.",
+          ),
+        ),
     );
   }
 
-  return <>{children}</>;
+  return React.createElement(React.Fragment, null, children);
 }
