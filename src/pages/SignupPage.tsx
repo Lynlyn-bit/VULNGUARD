@@ -22,6 +22,7 @@ const SignupPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const passwordStrength = validatePasswordStrength(password);
 
@@ -31,16 +32,20 @@ const SignupPage = () => {
 
     if (!passwordStrength.isValid) {
       toast.error("Password does not meet security requirements");
+      setSubmitError("");
       setLoading(false);
       return;
     }
 
     try {
+      setSubmitError("");
       await signUp(email, password);
       toast.success("Account created successfully! Redirecting to dashboard...");
       navigate("/dashboard");
     } catch (error: unknown) {
-      toast.error(getUserFriendlyError(error));
+      const message = getUserFriendlyError(error);
+      setSubmitError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -74,7 +79,10 @@ const SignupPage = () => {
                   type="email"
                   placeholder="john@example.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setSubmitError("");
+                  }}
                   required
                 />
               </div>
@@ -88,7 +96,10 @@ const SignupPage = () => {
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setSubmitError("");
+                    }}
                     required
                     className="pr-10"
                   />
@@ -149,6 +160,17 @@ const SignupPage = () => {
                   </p>
                 )}
               </div>
+
+              {submitError && (
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+                  {submitError}
+                  {submitError.toLowerCase().includes("already registered") && (
+                    <span>
+                      {" "}You can <Link to="/login" className="font-medium text-primary hover:underline">log in</Link> or <Link to="/forgot-password" className="font-medium text-primary hover:underline">reset your password</Link>.
+                    </span>
+                  )}
+                </div>
+              )}
 
               <Button
                 type="submit"

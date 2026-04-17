@@ -185,12 +185,21 @@ class ApiClient {
     return !!this.accessToken;
   }
 
+  private normalizeEmail(email: string) {
+    return email.trim().toLowerCase();
+  }
+
   async signup(email: string, password: string, firstName?: string, lastName?: string): Promise<AuthResponse> {
     const data = await this.request<AuthResponse>(
       "/auth/signup",
       {
         method: "POST",
-        body: JSON.stringify({ email, password, firstName, lastName }),
+        body: JSON.stringify({
+          email: this.normalizeEmail(email),
+          password,
+          firstName,
+          lastName,
+        }),
       },
       false,
     );
@@ -204,7 +213,7 @@ class ApiClient {
       "/auth/login",
       {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: this.normalizeEmail(email), password }),
       },
       false,
     );
@@ -232,7 +241,7 @@ class ApiClient {
   async forgotPassword(email: string) {
     const data = await this.request<{ message: string }>("/auth/forgot-password", {
       method: "POST",
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email: this.normalizeEmail(email) }),
     }, false);
     return { data };
   }
