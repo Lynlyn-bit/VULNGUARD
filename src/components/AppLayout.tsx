@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Shield, LayoutDashboard, Search, FileText, Settings, LogOut, Menu } from "lucide-react";
+import { Shield, LayoutDashboard, Search, FileText, Settings, LogOut, Menu, CreditCard } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/scan", icon: Search, label: "New Scan" },
   { to: "/results", icon: FileText, label: "Results" },
+  { to: "/subscription", icon: CreditCard, label: "Subscription" },
   { to: "/settings", icon: Settings, label: "Settings" },
 ];
 
