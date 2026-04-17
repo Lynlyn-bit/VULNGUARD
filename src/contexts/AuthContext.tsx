@@ -7,6 +7,11 @@ interface User {
   firstName?: string;
   lastName?: string;
   role?: string;
+  // Subscription fields
+  stripeCustomerId?: string;
+  subscriptionStatus: 'none' | 'active' | 'canceled' | 'past_due';
+  planTier: 'free' | 'pro' | 'enterprise';
+  currentPeriodEnd?: string;
 }
 
 interface AuthContextType {

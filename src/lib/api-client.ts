@@ -138,6 +138,25 @@ class ApiClient {
     return this.client.get<AuthUser>('/auth/me');
   }
 
+  // Password recovery endpoints
+  async forgotPassword(email: string) {
+    return this.client.post('/auth/forgot-password', { email });
+  }
+
+  async resetPassword(token: string, newPassword: string, confirmPassword: string) {
+    return this.client.post('/auth/reset-password', {
+      token,
+      newPassword,
+      confirmPassword,
+    });
+  }
+
+  async verifyResetToken(token: string) {
+    return this.client.post<{ valid: boolean; email: string }>('/auth/verify-reset-token', {
+      token,
+    });
+  }
+
   // Scan endpoints
   async createScan(url: string, vulnerabilities: any[] = [], duration: number = 0) {
     return this.client.post('/scans', {
@@ -199,6 +218,27 @@ class ApiClient {
 
   async deleteSchedule(id: string) {
     return this.client.delete(`/schedules/${id}`);
+  }
+
+  // Stripe / Subscription endpoints
+  async createCheckoutSession(planTier: string) {
+    return this.client.post('/stripe/checkout-session', { planTier });
+  }
+
+  async verifyCheckoutSession(sessionId: string) {
+    return this.client.post('/stripe/verify-session', { sessionId });
+  }
+
+  async getSubscriptionStatus() {
+    return this.client.get('/stripe/subscription-status');
+  }
+
+  async cancelSubscription() {
+    return this.client.post('/stripe/cancel-subscription');
+  }
+
+  async updatePaymentMethod() {
+    return this.client.post('/stripe/update-payment-method');
   }
 }
 
