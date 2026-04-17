@@ -46,6 +46,9 @@ export interface ScanVulnerability {
   category?: string;
   passed?: boolean;
   details?: string;
+  codeFix?: string;
+  resolved?: boolean;
+  resolvedAt?: string;
 }
 
 export interface ScanRecord {
@@ -87,6 +90,7 @@ export interface CheckoutSessionRecord {
   verified: boolean;
 }
 
+/** Legacy JSON file shape (migration / tooling only). */
 export interface DatabaseState {
   users: UserRecord[];
   settings: Record<string, UserSettings>;

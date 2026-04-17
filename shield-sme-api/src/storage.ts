@@ -1,11 +1,6 @@
-import fs from "node:fs";
-import path from "node:path";
-import { DatabaseState, ScanVulnerability, UserSettings } from "./types";
+import type { ScanVulnerability, UserSettings } from "./types";
 
-const DATA_DIR = path.join(__dirname, "..", "data");
-const DATA_FILE = path.join(DATA_DIR, "db.json");
-
-function defaultSettings(): UserSettings {
+export function buildDefaultSettings(): UserSettings {
   return {
     theme: "light",
     language: "en",
@@ -27,56 +22,6 @@ function defaultSettings(): UserSettings {
       style: "shield",
     },
   };
-}
-
-function defaultState(): DatabaseState {
-  return {
-    users: [],
-    settings: {},
-    scans: [],
-    schedules: [],
-    resetTokens: [],
-    checkoutSessions: [],
-  };
-}
-
-function ensureDataFile() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(defaultState(), null, 2));
-  }
-}
-
-export function loadDb(): DatabaseState {
-  ensureDataFile();
-  try {
-    const raw = fs.readFileSync(DATA_FILE, "utf8");
-    const parsed = JSON.parse(raw) as Partial<DatabaseState>;
-    return {
-      users: parsed.users ?? [],
-      settings: parsed.settings ?? {},
-      scans: parsed.scans ?? [],
-      schedules: parsed.schedules ?? [],
-      resetTokens: parsed.resetTokens ?? [],
-      checkoutSessions: parsed.checkoutSessions ?? [],
-    };
-  } catch {
-    return defaultState();
-  }
-}
-
-export function saveDb(db: DatabaseState) {
-  ensureDataFile();
-  fs.writeFileSync(DATA_FILE, JSON.stringify(db, null, 2));
-}
-
-export function ensureUserSettings(db: DatabaseState, userId: string): UserSettings {
-  if (!db.settings[userId]) {
-    db.settings[userId] = defaultSettings();
-  }
-  return db.settings[userId];
 }
 
 export function summarizeVulnerabilities(vulnerabilities: ScanVulnerability[]) {
