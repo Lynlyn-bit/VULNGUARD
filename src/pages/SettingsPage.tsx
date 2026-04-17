@@ -1,125 +1,211 @@
-import { useState, useEffect } from "react";
-import { Shield, Save, Loader2, CheckCircle, Eye, EyeOff, ExternalLink, CalendarClock, Plus, Trash2, Power } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Shield, Copy, Check, Clock, Badge } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { apiClient, type UserSettings } from "@/lib/api-client";
 import { toast } from "sonner";
-
-interface ScheduledScan {
-  id: string;
-  target_url: string;
-  cron_expression: string;
-  enabled: boolean;
-  last_run_at: string | null;
-  next_run_at: string | null;
-}
-
-const CRON_PRESETS = [
-  { label: "Daily (3 AM)", value: "0 3 * * *" },
-  { label: "Weekly (Mon 3 AM)", value: "0 3 * * 1" },
-  { label: "Bi-weekly (Mon 3 AM)", value: "0 3 1,15 * *" },
-  { label: "Monthly (1st, 3 AM)", value: "0 3 1 * *" },
-];
 
 const SettingsPage = () => {
   const { user } = useAuth();
-  const [zapUrl, setZapUrl] = useState("");
-  const [zapKey, setZapKey] = useState("");
-  const [showKey, setShowKey] = useState(false);
+  const [settings, setSettings] = useState<UserSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [hasConfig, setHasConfig] = useState(false);
-
-  // Scheduled scans
-  const [scheduledScans, setScheduledScans] = useState<ScheduledScan[]>([]);
-  const [newUrl, setNewUrl] = useState("");
-  const [newCron, setNewCron] = useState("0 3 * * 1");
-  const [addingSchedule, setAddingSchedule] = useState(false);
+  const [badgeCopied, setBadgeCopied] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: user?.firstName || "",
+    lastName: user?.lastName || "",
+    organization: "",
+  });
+  const [automatedScanData, setAutomatedScanData] = useState({
+    enabled: false,
+    dayOfWeek: "Monday",
+    timeOfDay: "09:00",
+    targetUrl: "",
+  });
+  const [badgeData, setBadgeData] = useState({
+    enabled: false,
+    color: "primary",
+    style: "shield",
+  });
 
   useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const [configRes, schedulesRes] = await Promise.all([
-        supabase.from("user_scan_config").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("scheduled_scans").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
-      ]);
-      if (configRes.data) {
-        setZapUrl(configRes.data.zap_api_url || "");
-        setZapKey(configRes.data.zap_api_key || "");
-        setHasConfig(true);
-      }
-      if (schedulesRes.data) {
-        setScheduledScans(schedulesRes.data);
-      }
-      setLoading(false);
-    })();
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+      }));
+    }
   }, [user]);
 
-  const handleSave = async () => {
-    if (!user) return;
-    setSaving(true);
-    try {
-      if (hasConfig) {
-        const { error } = await supabase
-          .from("user_scan_config")
-          .update({ zap_api_url: zapUrl, zap_api_key: zapKey })
-          .eq("user_id", user.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from("user_scan_config")
-          .insert({ user_id: user.id, zap_api_url: zapUrl, zap_api_key: zapKey });
-        if (error) throw error;
-        setHasConfig(true);
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await apiClient.getUserSettings();
+        setSettings(response.data);
+        if (response.data.automatedScans) {
+          setAutomatedScanData(response.data.automatedScans);
+        }
+        if (response.data.badge) {
+          setBadgeData(response.data.badge);
+        }
+      } catch (error) {
+        console.error("Failed to fetch settings:", error);
+      } finally {
+        setLoading(false);
       }
-      toast.success("ZAP configuration saved");
-    } catch (e: any) {
-      toast.error("Failed to save", { description: e.message });
+    };
+
+    fetchSettings();
+  }, []);
+
+  const handleAutomatedScansChange = async () => {
+    if (!settings) return;
+
+    const newSettings = {
+      ...settings,
+      automatedScans: {
+        ...automatedScanData,
+        enabled: !automatedScanData.enabled,
+      },
+    };
+
+    try {
+      setSaving(true);
+      await apiClient.updateUserSettings(newSettings);
+      setSettings(newSettings);
+      toast.success(automatedScanData.enabled ? "Automated scans disabled" : "Automated scans enabled");
+      setAutomatedScanData(newSettings.automatedScans!);
+    } catch (error) {
+      console.error("Failed to update settings:", error);
+      toast.error("Failed to update automated scans");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleAddSchedule = async () => {
-    if (!user || !newUrl.trim()) return;
-    setAddingSchedule(true);
+  const handleAutomatedScanConfig = async () => {
+    if (!automatedScanData.targetUrl) {
+      toast.error("Please enter a target URL");
+      return;
+    }
+
+    if (!settings) return;
+
+    const newSettings = {
+      ...settings,
+      automatedScans: automatedScanData,
+    };
+
     try {
-      const normalizedUrl = newUrl.startsWith("http") ? newUrl : `https://${newUrl}`;
-      const { data, error } = await supabase
-        .from("scheduled_scans")
-        .insert({
-          user_id: user.id,
-          target_url: normalizedUrl,
-          cron_expression: newCron,
-          enabled: true,
-        })
-        .select()
-        .single();
-      if (error) throw error;
-      setScheduledScans(prev => [data, ...prev]);
-      setNewUrl("");
-      toast.success("Scheduled scan added");
-    } catch (e: any) {
-      toast.error("Failed to add schedule", { description: e.message });
+      setSaving(true);
+      await apiClient.updateUserSettings(newSettings);
+      setSettings(newSettings);
+      toast.success("Automated scan configuration saved");
+    } catch (error) {
+      console.error("Failed to update settings:", error);
+      toast.error("Failed to save configuration");
     } finally {
-      setAddingSchedule(false);
+      setSaving(false);
     }
   };
 
-  const toggleSchedule = async (id: string, enabled: boolean) => {
-    const { error } = await supabase
-      .from("scheduled_scans")
-      .update({ enabled: !enabled })
-      .eq("id", id);
-    if (!error) {
-      setScheduledScans(prev => prev.map(s => s.id === id ? { ...s, enabled: !enabled } : s));
+  const handleBadgeToggle = async () => {
+    if (!settings) return;
+
+    const newBadgeData = {
+      ...badgeData,
+      enabled: !badgeData.enabled,
+    };
+
+    const newSettings = {
+      ...settings,
+      badge: newBadgeData,
+    };
+
+    try {
+      setSaving(true);
+      await apiClient.updateUserSettings(newSettings);
+      setSettings(newSettings);
+      setBadgeData(newBadgeData);
+      toast.success(badgeData.enabled ? "Badge hidden" : "Badge enabled");
+    } catch (error) {
+      console.error("Failed to update settings:", error);
+      toast.error("Failed to update badge settings");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const deleteSchedule = async (id: string) => {
-    const { error } = await supabase.from("scheduled_scans").delete().eq("id", id);
-    if (!error) {
-      setScheduledScans(prev => prev.filter(s => s.id !== id));
-      toast.success("Scheduled scan removed");
+  const handleBadgeStyleChange = async (style: string, color: string) => {
+    if (!settings) return;
+
+    const newBadgeData = {
+      ...badgeData,
+      style,
+      color,
+    };
+
+    const newSettings = {
+      ...settings,
+      badge: newBadgeData,
+    };
+
+    try {
+      setSaving(true);
+      await apiClient.updateUserSettings(newSettings);
+      setSettings(newSettings);
+      setBadgeData(newBadgeData);
+      toast.success("Badge style updated");
+    } catch (error) {
+      console.error("Failed to update settings:", error);
+      toast.error("Failed to update badge style");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const copyBadgeCode = () => {
+    const embedCode = `<iframe src="https://vulnguard.io/badge/${user?.id}" width="200" height="100" frameborder="0" allow="none"></iframe>`;
+    navigator.clipboard.writeText(embedCode);
+    setBadgeCopied(true);
+    setTimeout(() => setBadgeCopied(false), 2000);
+    toast.success("Badge code copied to clipboard");
+  };
+
+  const handleProfileUpdate = async () => {
+    setSaving(true);
+    try {
+      await apiClient.updateUserProfile({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+      });
+      toast.success("Profile updated successfully");
+    } catch (error) {
+      console.error("Failed to update profile:", error);
+      toast.error("Failed to update profile");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleNotificationChange = async (key: "email" | "scanComplete" | "vulnerabilityFound") => {
+    if (!settings) return;
+
+    const newSettings = {
+      ...settings,
+      notifications: {
+        ...settings.notifications,
+        [key]: !settings.notifications[key],
+      },
+    };
+
+    try {
+      await apiClient.updateUserSettings(newSettings);
+      setSettings(newSettings);
+      toast.success("Notification preferences updated");
+    } catch (error) {
+      console.error("Failed to update settings:", error);
+      toast.error("Failed to update notification preferences");
     }
   };
 
@@ -127,203 +213,305 @@ const SettingsPage = () => {
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">Manage your account and scanning configuration</p>
+        <p className="text-sm text-muted-foreground">
+          Manage your account, scanning, and security preferences
+        </p>
       </div>
 
-      {/* Account */}
-      <div className="rounded-lg border border-border bg-card p-6">
-        <h3 className="mb-4 text-sm font-semibold">Account</h3>
-        <div className="space-y-4">
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Email</label>
-            <input
-              type="email"
-              value={user?.email || ""}
-              disabled
-              className="w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground"
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Organization</label>
-            <input
-              type="text"
-              placeholder="Your company name"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
+      {loading ? (
+        <div className="rounded-lg border border-border bg-card p-6 text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+          <p className="mt-3 text-sm text-muted-foreground">Loading settings...</p>
         </div>
-      </div>
-
-      {/* OWASP ZAP Configuration */}
-      <div className="rounded-lg border border-primary/20 bg-card p-6">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-semibold flex items-center gap-2">
-              <Shield className="h-4 w-4 text-primary" strokeWidth={2} />
-              OWASP ZAP Configuration
-            </h3>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Connect to your self-hosted ZAP instance for real DAST scanning
-            </p>
-          </div>
-          {hasConfig && zapUrl && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold text-accent">
-              <CheckCircle className="h-3 w-3" /> Connected
-            </span>
-          )}
-        </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">ZAP API URL</label>
-              <input
-                type="url"
-                value={zapUrl}
-                onChange={(e) => setZapUrl(e.target.value)}
-                placeholder="http://localhost:8080"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                The base URL of your ZAP API (e.g., http://your-server:8080)
-              </p>
-            </div>
-
-            <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">ZAP API Key</label>
-              <div className="relative">
+      ) : (
+        <>
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h3 className="mb-4 text-sm font-semibold">Profile</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Email</label>
                 <input
-                  type={showKey ? "text" : "password"}
-                  value={zapKey}
-                  onChange={(e) => setZapKey(e.target.value)}
-                  placeholder="Your ZAP API key"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 pr-10 font-mono text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  type="email"
+                  value={user?.email || ""}
+                  disabled
+                  className="w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowKey(!showKey)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
               </div>
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                Found in ZAP → Options → API → API Key
-              </p>
-            </div>
-
-            <button
-              onClick={handleSave}
-              disabled={saving || !zapUrl.trim() || !zapKey.trim()}
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Save Configuration
-            </button>
-          </div>
-        )}
-
-        {/* Setup guide */}
-        <div className="mt-6 rounded-md border border-border bg-muted/30 p-4">
-          <h4 className="text-xs font-semibold text-muted-foreground mb-2">Quick Setup Guide</h4>
-          <ol className="space-y-1.5 text-xs text-muted-foreground list-decimal pl-4">
-            <li>Download & install <a href="https://www.zaproxy.org/download/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-0.5">OWASP ZAP <ExternalLink className="h-2.5 w-2.5" /></a></li>
-            <li>Start ZAP in daemon mode: <code className="rounded bg-muted px-1 py-0.5 font-mono text-[10px]">zap.sh -daemon -port 8080</code></li>
-            <li>Find your API key in Options → API</li>
-            <li>If ZAP is on a remote server, ensure the API is accessible from the internet</li>
-            <li>Enter your URL and key above, then run a scan from the Scan page</li>
-          </ol>
-        </div>
-      </div>
-
-      {/* Scheduled Scans */}
-      <div className="rounded-lg border border-border bg-card p-6">
-        <h3 className="mb-1 text-sm font-semibold flex items-center gap-2">
-          <CalendarClock className="h-4 w-4 text-primary" strokeWidth={2} />
-          Scheduled Scans
-        </h3>
-        <p className="mb-4 text-xs text-muted-foreground">
-          Automatically run ZAP scans on a recurring schedule
-        </p>
-
-        {/* Add new schedule */}
-        {hasConfig && (
-          <div className="mb-4 rounded-md border border-border bg-muted/30 p-4 space-y-3">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newUrl}
-                onChange={(e) => setNewUrl(e.target.value)}
-                placeholder="Target URL (e.g., example.com)"
-                className="flex-1 rounded-md border border-input bg-background px-3 py-2 font-mono text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              <select
-                value={newCron}
-                onChange={(e) => setNewCron(e.target.value)}
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">First Name</label>
+                  <input
+                    type="text"
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    placeholder="John"
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Last Name</label>
+                  <input
+                    type="text"
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    placeholder="Doe"
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={handleProfileUpdate}
+                disabled={saving}
+                className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
               >
-                {CRON_PRESETS.map(p => (
-                  <option key={p.value} value={p.value}>{p.label}</option>
-                ))}
-              </select>
+                {saving ? "Saving..." : "Save Profile"}
+              </button>
             </div>
-            <button
-              onClick={handleAddSchedule}
-              disabled={addingSchedule || !newUrl.trim()}
-              className="inline-flex items-center gap-2 rounded-md bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:opacity-50"
-            >
-              {addingSchedule ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
-              Add Schedule
-            </button>
           </div>
-        )}
 
-        {!hasConfig && (
-          <p className="text-xs text-muted-foreground italic">Configure your ZAP API above to enable scheduled scans.</p>
-        )}
-
-        {/* Existing schedules */}
-        {scheduledScans.length > 0 && (
-          <div className="space-y-2">
-            {scheduledScans.map((s) => (
-              <div key={s.id} className={`flex items-center justify-between rounded-md border px-4 py-3 transition-colors ${s.enabled ? "border-border bg-card" : "border-border/50 bg-muted/20 opacity-60"}`}>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-mono text-sm">{s.target_url}</p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {CRON_PRESETS.find(p => p.value === s.cron_expression)?.label || s.cron_expression}
-                    {s.last_run_at && ` · Last: ${new Date(s.last_run_at).toLocaleDateString()}`}
-                    {s.next_run_at && ` · Next: ${new Date(s.next_run_at).toLocaleDateString()}`}
-                  </p>
-                </div>
-                <div className="ml-3 flex items-center gap-1">
-                  <button onClick={() => toggleSchedule(s.id, s.enabled)} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" title={s.enabled ? "Disable" : "Enable"}>
-                    <Power className={`h-3.5 w-3.5 ${s.enabled ? "text-accent" : ""}`} />
-                  </button>
-                  <button onClick={() => deleteSchedule(s.id)} className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" title="Delete">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+          <div className="rounded-lg border border-border bg-card p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="flex items-center gap-2 text-sm font-semibold">
+                  <Clock className="h-4 w-4 text-primary" />
+                  Automated Weekly Scans
+                </h3>
+                <p className="mt-1 text-xs text-muted-foreground">Automatically scan your site on a regular schedule</p>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            </div>
+            <div className="space-y-4">
+              <label className="flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={automatedScanData.enabled}
+                  onChange={handleAutomatedScansChange}
+                  disabled={saving}
+                  className="rounded border-input"
+                />
+                <span className="text-sm font-medium">Enable automated weekly scans</span>
+              </label>
 
-      {/* About */}
-      <div className="rounded-lg border border-border bg-card p-6">
-        <h3 className="mb-2 text-sm font-semibold">About VulnGuard</h3>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Shield className="h-4 w-4 text-primary" />
-          <span>VulnGuard v2.0 — Web Vulnerability Scanner for SMEs</span>
-        </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Powered by OWASP ZAP for real DAST scanning. Supports spider crawling, active vulnerability scanning, and detailed CVE-based reporting.
-        </p>
-      </div>
+              {automatedScanData.enabled && (
+                <div className="space-y-3 rounded-md border border-primary/20 bg-primary/5 p-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Day of Week</label>
+                      <select
+                        value={automatedScanData.dayOfWeek}
+                        onChange={(e) =>
+                          setAutomatedScanData({ ...automatedScanData, dayOfWeek: e.target.value })
+                        }
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => (
+                          <option key={day} value={day}>
+                            {day}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Time of Day</label>
+                      <input
+                        type="time"
+                        value={automatedScanData.timeOfDay}
+                        onChange={(e) =>
+                          setAutomatedScanData({ ...automatedScanData, timeOfDay: e.target.value })
+                        }
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Target URL to Scan</label>
+                    <input
+                      type="url"
+                      value={automatedScanData.targetUrl}
+                      onChange={(e) =>
+                        setAutomatedScanData({ ...automatedScanData, targetUrl: e.target.value })
+                      }
+                      placeholder="https://example.com"
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                  <button
+                    onClick={handleAutomatedScanConfig}
+                    disabled={saving}
+                    className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    Save Schedule
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border bg-card p-6">
+            <div className="mb-4">
+              <h3 className="flex items-center gap-2 text-sm font-semibold">
+                <Badge className="h-4 w-4 text-primary" />
+                Security Badge
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground">Display your security scan status on your website</p>
+            </div>
+            <div className="space-y-4">
+              <label className="flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={badgeData.enabled}
+                  onChange={handleBadgeToggle}
+                  disabled={saving}
+                  className="rounded border-input"
+                />
+                <span className="text-sm font-medium">Enable security badge</span>
+              </label>
+
+              {badgeData.enabled && (
+                <div className="space-y-4 rounded-md border border-primary/20 bg-primary/5 p-4">
+                  <div>
+                    <label className="mb-2 block text-xs font-medium text-muted-foreground">Badge Style</label>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {["shield", "badge", "minimal"].map((style) => (
+                        <button
+                          key={style}
+                          type="button"
+                          onClick={() => handleBadgeStyleChange(style, badgeData.color)}
+                          className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                            badgeData.style === style
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-input hover:border-primary/30"
+                          }`}
+                        >
+                          {style.charAt(0).toUpperCase() + style.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-medium text-muted-foreground">Badge Color</label>
+                    <div className="grid gap-2 sm:grid-cols-4">
+                      {["primary", "accent", "success", "warning"].map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => handleBadgeStyleChange(badgeData.style, color)}
+                          className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                            badgeData.color === color
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-input hover:border-primary/30"
+                          }`}
+                        >
+                          {color.charAt(0).toUpperCase() + color.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-xs font-medium text-muted-foreground">Embed Code</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={`<iframe src="https://vulnguard.io/badge/${user?.id}" width="200" height="100" frameborder="0"></iframe>`}
+                        className="flex-1 rounded-md border border-input bg-muted px-3 py-2 font-mono text-xs text-muted-foreground"
+                      />
+                      <button
+                        type="button"
+                        onClick={copyBadgeCode}
+                        className="rounded-md bg-primary/10 p-2 text-primary transition-colors hover:bg-primary/20"
+                        title="Copy badge code"
+                      >
+                        {badgeCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">Copy this code to embed the badge on your website</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h3 className="mb-4 text-sm font-semibold">Notifications</h3>
+            <div className="space-y-3">
+              <label className="flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={settings?.notifications?.email || false}
+                  onChange={() => handleNotificationChange("email")}
+                  className="rounded border-input"
+                />
+                <span className="text-sm">Enable email notifications</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={settings?.notifications?.scanComplete || false}
+                  onChange={() => handleNotificationChange("scanComplete")}
+                  className="rounded border-input"
+                />
+                <span className="text-sm">Notify when scans complete</span>
+              </label>
+              <label className="flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={settings?.notifications?.vulnerabilityFound || false}
+                  onChange={() => handleNotificationChange("vulnerabilityFound")}
+                  className="rounded border-input"
+                />
+                <span className="text-sm">Alert on critical vulnerabilities</span>
+              </label>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+              <Shield className="h-4 w-4 text-primary" />
+              About VulnGuard
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <p className="mb-2 text-sm font-medium text-muted-foreground">
+                  VulnGuard v1.0 — Lightweight Website Security Checks for SMEs
+                </p>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  VulnGuard performs real, non-destructive checks against your public website configuration. It focuses on transport security,
+                  security headers, disclosure signals, CORS behavior, and site reachability.
+                </p>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">Security Tests Performed:</p>
+                <ul className="space-y-1.5">
+                  {[
+                    "SSL/TLS Certificate & HTTPS Configuration",
+                    "Security Headers Analysis (X-Content-Type-Options, X-Frame-Options, CSP, HSTS)",
+                    "HTTP to HTTPS Redirect Verification",
+                    "Server Information Disclosure Detection",
+                    "CORS Configuration Assessment",
+                    "Domain Accessibility & Reachability Testing",
+                  ].map((test) => (
+                    <li key={test} className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <span className="mt-1 text-primary">✓</span>
+                      <span>{test}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div>
+                <p className="mb-1 text-xs font-medium text-muted-foreground">Key Features:</p>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Automated scanning, detailed remediation guidance, customizable schedules, and a security badge for your website. All checks are
+                  designed to stay lightweight and non-destructive.
+                </p>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

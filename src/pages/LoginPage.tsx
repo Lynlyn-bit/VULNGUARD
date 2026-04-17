@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { getUserFriendlyError } from "@/lib/error-handler";
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -20,14 +21,14 @@ const LoginPage = () => {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
 
-    const { error } = await signIn(email, password);
-    setLoading(false);
-
-    if (error) {
-      toast.error(error.message);
-    } else {
+    try {
+      await signIn(email, password);
       toast.success("Welcome back!");
       navigate("/dashboard");
+    } catch (error: unknown) {
+      toast.error(getUserFriendlyError(error));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -58,7 +59,7 @@ const LoginPage = () => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <a href="#" className="text-xs text-primary hover:underline">Forgot password?</a>
+                  <Link to="/forgot-password" className="text-xs text-primary hover:underline">Forgot password?</Link>
                 </div>
                 <Input id="password" name="password" type="password" placeholder="••••••••" required />
               </div>
