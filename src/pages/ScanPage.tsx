@@ -104,6 +104,7 @@ const ScanPage = () => {
         severity: test.severity,
         description: test.description,
         recommendation: test.remediation,
+        codeFix: test.codeFix,
         location: test.location || normalizedUrl,
         category: test.category,
         passed: test.passed,
@@ -275,6 +276,8 @@ const ScanPage = () => {
           <div className="grid gap-2 sm:grid-cols-2">
             {[
               "SSL/TLS Certificate Validation",
+              "Simulated XSS assessment",
+              "Sensitive data exposure review",
               "HTTP to HTTPS Redirect Check",
               "Security Headers Analysis",
               "Server Information Disclosure",
