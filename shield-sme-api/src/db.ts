@@ -5,6 +5,7 @@ const CONNECT_OPTIONS = {
   serverSelectionTimeoutMS: 25_000,
   /** Prefer IPv4 when resolving Atlas hosts (often fixes Windows + SRV). */
   family: 4,
+  dbName: process.env.MONGODB_DB_NAME ?? "vulnguard",
 } as const;
 
 /** Public resolvers — used only when default resolver fails SRV for mongodb+srv:// */

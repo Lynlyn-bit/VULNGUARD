@@ -4,7 +4,7 @@
   "description": "Local backend for VulnGuard Shield SME Web",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "ts-node src/index.ts",
+    "dev": "ts-node --files src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "test": "echo \"No backend tests configured yet\""
